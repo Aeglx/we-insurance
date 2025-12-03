@@ -6,6 +6,7 @@ import dotenv from 'dotenv'
 import mysql2 from 'mysql2/promise'
 import { sequelize, Sequelize } from './src/database/connection.js'
 import databaseService from './src/services/databaseService.js'
+import backupService from './src/services/backupService.js'
 import { User, Insurance, Business, InsuranceCategory, BusinessLevel } from './src/database/models/index.js'
 
 // 加载环境变量
@@ -88,6 +89,12 @@ const initDatabase = async () => {
     await databaseService.init()
 
     console.log('数据库表初始化完成！')
+    
+    // 导入最新的数据库备份
+    await backupService.importDatabase()
+    
+    // 初始化备份服务
+    await backupService.init()
 
     // 检查是否需要创建默认管理员用户
     const adminCount = await User.count({ where: { role: 'admin' } })
