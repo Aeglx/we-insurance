@@ -4,13 +4,14 @@ import App from './App.vue'
 import router from './router'
 import './style.css'
 
+// 引入Element Plus
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
+
 // 引入Font Awesome
 import '@fortawesome/fontawesome-free/css/all.min.css'
 
-// 开发环境下使用Mock数据 - 暂时禁用以使用真实API
-// if (import.meta.env.DEV) {
-//   import('./mock')
-// }
+
 
 // 引入Toast插件
 import toastPlugin from './components/common/toastPlugin'
@@ -24,5 +25,6 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 app.use(toastPlugin)
+app.use(ElementPlus)
 
 app.mount('#app')

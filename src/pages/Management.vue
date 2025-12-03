@@ -35,12 +35,7 @@
           >
             险种管理
           </button>
-          <button 
-            @click="activeTab = 'businessLevel'" 
-            :class="['py-4 px-1 border-b-2 font-medium text-sm', activeTab === 'businessLevel' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300']"
-          >
-            业务等级管理
-          </button>
+
         </div>
       </div>
     </div>
@@ -700,7 +695,7 @@ onMounted(() => {
 const loadInsuranceList = async () => {
   try {
     const response = await insuranceService.getInsuranceList()
-    insuranceList.value = response.list || []
+    insuranceList.value = response.data || []
   } catch (error) {
       console.error('加载险种列表失败:', error)
       toast.error('加载险种列表失败')
@@ -712,8 +707,8 @@ const loadInsuranceCategories = async () => {
   try {
     const response = await insuranceService.getInsuranceCategories()
     // 更新险种分类列表
-    if (response.categories) {
-      insuranceCategories.value = response.categories
+    if (response.data) {
+      insuranceCategories.value = response.data
       // 更新最大分类ID
       if (insuranceCategories.value.length > 0) {
         maxCategoryId.value = Math.max(...insuranceCategories.value.map(category => category.id))
@@ -740,7 +735,7 @@ const loadAgentList = async () => {
 const searchInsurance = async () => {
   try {
     const response = await insuranceService.getInsuranceList({ keyword: insuranceSearchKeyword.value })
-    insuranceList.value = response.list || []
+    insuranceList.value = response.data || []
   } catch (error) {
       console.error('搜索险种失败:', error)
       toast.error('搜索险种失败')

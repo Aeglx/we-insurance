@@ -1,9 +1,5 @@
 <template>
   <div class="business-register-page">
-    <div class="page-header">
-      <h2 class="text-2xl font-bold text-gray-800 mb-4">业务登记</h2>
-      <p class="text-gray-500">请填写完整的业务登记信息</p>
-    </div>
     
     <el-card shadow="hover" class="register-card">
       <el-form :model="formData" :rules="formRules" ref="formRef" label-position="right" label-width="120px">
@@ -73,10 +69,10 @@
           <el-divider class="section-divider"></el-divider>
           <el-row :gutter="24">
             <el-col :span="12">
-              <el-form-item label="险种类型" prop="insuranceTypeId" required>
+              <el-form-item label="险种分类" prop="insuranceTypeId" required>
                 <el-select
                   v-model="formData.insuranceTypeId"
-                  placeholder="请选择险种类型"
+                  placeholder="请选择险种分类"
                   @change="onInsuranceTypeChange"
                   class="w-full"
                   filterable
@@ -91,13 +87,14 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="具体险种" prop="specificInsuranceId" required>
+              <el-form-item label="险种名称" prop="specificInsuranceId" required>
                 <el-select
                   v-model="formData.specificInsuranceId"
-                  placeholder="请选择具体险种"
+                  placeholder="请选择险种名称"
                   class="w-full"
                   filterable
                   :disabled="!formData.insuranceTypeId"
+                  @change="onSpecificInsuranceChange"
                 >
                   <el-option
                     v-for="insurance in specificInsurances"
@@ -116,19 +113,38 @@
           <h3 class="section-title">客户信息区</h3>
           <el-divider class="section-divider"></el-divider>
           <el-row :gutter="24">
-            <el-col :span="12">
+            <!-- 客户类型字段隐藏 -->
+            <el-form-item label="客户类型" prop="clientType" required v-show="false">
+              <el-select v-model="formData.clientType" placeholder="请选择客户类型" @change="handleClientTypeChange">
+                <el-option label="个人客户" value="personal"></el-option>
+                <el-option label="企业客户" value="company"></el-option>
+                <el-option label="车类客户" value="vehicle"></el-option>
+              </el-select>
+            </el-form-item>
+            
+            <!-- 个人客户字段 -->
+            <el-col :span="12" v-if="formData.clientType === 'personal'">
               <el-form-item label="客户名称" prop="clientName" required>
                 <el-input v-model="formData.clientName" placeholder="请输入客户名称" clearable></el-input>
               </el-form-item>
             </el-col>
-            <el-col :span="12">
-              <el-form-item label="联系人姓名" prop="personalName">
-                <el-input v-model="formData.personalName" placeholder="请输入联系人姓名" clearable :disabled="!showPersonalName"></el-input>
+            
+            <!-- 企业客户字段 -->
+            <el-col :span="12" v-if="formData.clientType === 'company'">
+              <el-form-item label="联系人姓名" prop="personalName" required>
+                <el-input v-model="formData.personalName" placeholder="请输入联系人姓名" clearable></el-input>
               </el-form-item>
             </el-col>
-            <el-col :span="12">
-              <el-form-item label="公司名称" prop="companyName">
-                <el-input v-model="formData.companyName" placeholder="请输入公司名称" clearable :disabled="showPersonalName"></el-input>
+            <el-col :span="12" v-if="formData.clientType === 'company'">
+              <el-form-item label="公司名称" prop="companyName" required>
+                <el-input v-model="formData.companyName" placeholder="请输入公司名称" clearable></el-input>
+              </el-form-item>
+            </el-col>
+            
+            <!-- 车类客户字段 -->
+            <el-col :span="12" v-if="formData.clientType === 'vehicle'">
+              <el-form-item label="车牌号" prop="plateNumber" required>
+                <el-input v-model="formData.plateNumber" placeholder="请输入车牌号" clearable></el-input>
               </el-form-item>
             </el-col>
           </el-row>
@@ -254,7 +270,7 @@ import businessService from '../services/businessService'
 import agentService from '../services/agentService'
 import insuranceService from '../services/insuranceService'
 import underwriterService from '../services/underwriterService'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
@@ -270,9 +286,11 @@ const formData = reactive({
   underwriterId: '',
   insuranceTypeId: '',
   specificInsuranceId: '',
+  clientType: 'personal', // 默认个人客户
   clientName: '',
   personalName: '',
   companyName: '',
+  plateNumber: '', // 车牌号字段
   inquiryAmount: 0,
   dealStatus: '跟进中',
   reminderTime: '',
@@ -285,14 +303,60 @@ const formData = reactive({
 const formRules = reactive({
   agentId: [{ required: true, message: '请选择代理人', trigger: 'change' }],
   underwriterId: [{ required: true, message: '请选择出单员', trigger: 'change' }],
-  insuranceTypeId: [{ required: true, message: '请选择险种类型', trigger: 'change' }],
-  specificInsuranceId: [{ required: true, message: '请选择具体险种', trigger: 'change' }],
-  clientName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
+  insuranceTypeId: [{ required: true, message: '请选择险种分类', trigger: 'change' }],
+  specificInsuranceId: [{ required: true, message: '请选择险种名称', trigger: 'change' }],
+  clientType: [{ required: true, message: '请选择客户类型', trigger: 'change' }],
+  clientName: [
+    {
+      required: () => formData.clientType === 'personal',
+      message: '请输入客户名称',
+      trigger: 'blur'
+    }
+  ],
+  personalName: [
+    {
+      required: () => formData.clientType === 'company',
+      message: '请输入联系人姓名',
+      trigger: ['blur', 'change']
+    }
+  ],
+  companyName: [
+    {
+      required: () => formData.clientType === 'company',
+      message: '请输入公司名称',
+      trigger: ['blur', 'change']
+    }
+  ],
+  plateNumber: [
+    {
+      required: () => formData.clientType === 'vehicle',
+      message: '请输入车牌号',
+      trigger: ['blur', 'change']
+    }
+  ],
   inquiryAmount: [{ required: true, message: '请输入询价金额', trigger: 'blur' }, { type: 'number', min: 0, message: '询价金额不能为负数', trigger: 'blur' }],
   dealStatus: [{ required: true, message: '请选择成交状态', trigger: 'change' }],
-  reminderTime: [{ required: true, message: '请选择提醒时间', trigger: 'change' }],
-  policyNumber: [{ required: true, message: '请输入保单号', trigger: 'blur' }],
-  dealTime: [{ required: true, message: '请选择成交时间', trigger: 'change' }]
+  reminderTime: [
+    {
+      required: () => formData.dealStatus === '跟进中',
+      message: '请选择提醒时间',
+      trigger: ['blur', 'change']
+    }
+  ],
+  policyNumber: [
+    {
+      required: () => formData.dealStatus === '已成交',
+      message: '请输入保单号',
+      trigger: ['blur', 'change']
+    }
+  ],
+  dealTime: [
+    {
+      required: () => formData.dealStatus === '已成交',
+      message: '请选择成交时间',
+      trigger: ['blur', 'change']
+    }
+  ]
 })
 
 // 代理人相关数据
@@ -303,11 +367,10 @@ const searchAgent = ref('')
 // 出单员数据
 const underwriters = ref([])
 
-// 险种类型数据
-const insuranceTypes = ref([])
-
-// 具体险种数据
-const specificInsurances = ref([])
+// 险种分类数据
+  const insuranceTypes = ref([])
+  // 险种名称数据
+  const specificInsurances = ref([])
 
 // 加载状态
 const loading = ref(false)
@@ -328,22 +391,33 @@ const agentFormRules = reactive({
   email: [{ type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }]
 })
 
-// 计算属性：根据险种类型显示个人姓名或企业名称
-const showPersonalName = computed(() => {
-  // 当险种类型为以下几种时显示个人姓名
-  const personalInsuranceTypes = ['个人意外险', '健康险', '学平险', '运动险', '百万医疗', '医疗险']
-  // 找到当前选中的险种类型
-  const selectedType = insuranceTypes.value.find(type => type.id === formData.insuranceTypeId)
-  return selectedType ? personalInsuranceTypes.includes(selectedType.name) : false
-})
+// 处理客户类型变化
+const handleClientTypeChange = () => {
+  // 当客户类型变化时，重置不相关的字段
+  if (formData.clientType === 'personal') {
+    // 个人客户：保留clientName，清空其他
+    formData.personalName = ''
+    formData.companyName = ''
+    formData.plateNumber = ''
+  } else if (formData.clientType === 'company') {
+    // 企业客户：保留personalName和companyName，清空其他
+    formData.clientName = ''
+    formData.plateNumber = ''
+  } else if (formData.clientType === 'vehicle') {
+    // 车类客户：保留plateNumber，清空其他
+    formData.clientName = ''
+    formData.personalName = ''
+    formData.companyName = ''
+  }
+}
 
 // 初始化数据
 const initData = async () => {
-  // 加载代理人、出单员和险种类型数据
+  // 加载代理人、出单员和险种分类数据
   await Promise.all([
     loadAgents(),
     loadUnderwriters(),
-    loadInsuranceTypes()
+    loadInsuranceCategories()
   ])
   
   resetForm()
@@ -376,16 +450,16 @@ const loadUnderwriters = async () => {
   }
 }
 
-// 加载险种类型数据
-const loadInsuranceTypes = async () => {
+// 加载险种分类数据
+const loadInsuranceCategories = async () => {
   try {
-    const response = await insuranceService.getInsuranceList()
+    const response = await insuranceService.getInsuranceCategories()
     if (response.code === 200) {
       insuranceTypes.value = response.data
     }
   } catch (error) {
-    console.error('加载险种类型数据失败:', error)
-    ElMessage.error('加载险种类型数据失败')
+    console.error('加载险种分类数据失败:', error)
+    ElMessage.error('加载险种分类数据失败')
   }
 }
 
@@ -413,38 +487,101 @@ const onAgentChange = (agentId) => {
   }
 }
 
-// 险种类型选择变化
+// 险种分类与客户类型的映射关系
+const insuranceTypeToClientType = {
+  // 按险种分类名称映射
+  '个人意外险': 'personal',
+  '健康险': 'personal',
+  '学平险': 'personal',
+  '运动险': 'personal',
+  '旅游险': 'personal',
+  '百万医疗': 'personal',
+  '医疗险': 'personal',
+  '团体意外险': 'company',
+  '团体雇主险': 'company',
+  '建工团意': 'company',
+  '建工安责': 'company',
+  '建工一切': 'company',
+  '超赔险': 'vehicle',
+  '驾乘险': 'vehicle',
+  '随车雇主': 'vehicle',
+  // 按险种名称映射
+  '太平洋个人意外伤害医疗': 'personal',
+  '太平洋个人意外伤害': 'personal',
+  '太平洋团体意外伤害医疗': 'company',
+  '太平洋团体意外伤害': 'company'
+}
+
+// 险种分类选择变化
 const onInsuranceTypeChange = async (typeId) => {
-  // 重置具体险种
+  // 重置险种名称
   formData.specificInsuranceId = ''
   specificInsurances.value = []
   
-  // 根据险种类型加载具体险种
+  // 根据险种分类加载险种名称
   if (typeId) {
     await loadSpecificInsurances(typeId)
   }
 }
 
-// 加载具体险种
+// 险种名称选择变化
+const onSpecificInsuranceChange = (insuranceId) => {
+  if (insuranceId) {
+    // 根据险种名称设置客户类型
+    const selectedInsurance = specificInsurances.value.find(ins => ins.id === insuranceId)
+    if (selectedInsurance) {
+      console.log('Selected Insurance:', selectedInsurance)
+      console.log('Insurance Name:', selectedInsurance.name)
+      console.log('Insurance Category:', selectedInsurance.categoryName)
+      console.log('Mapped Client Type by Name:', insuranceTypeToClientType[selectedInsurance.name])
+      console.log('Mapped Client Type by Category:', insuranceTypeToClientType[selectedInsurance.categoryName])
+      
+      // 优先使用categoryName进行映射，如果没有再尝试name
+      formData.clientType = insuranceTypeToClientType[selectedInsurance.categoryName] || 
+                             insuranceTypeToClientType[selectedInsurance.name] || 
+                             'personal'
+      console.log('Client Type Set To:', formData.clientType)
+      handleClientTypeChange() // 重置相关字段
+    }
+  }
+}
+
+// 加载险种名称
 const loadSpecificInsurances = async (typeId) => {
   try {
-    // 实际应该调用API获取数据
-    // 这里使用模拟数据
-    specificInsurances.value = [
-      { id: 1, name: '个人意外险', typeId: 1 },
-      { id: 2, name: '团体意外险', typeId: 2 },
-      { id: 3, name: '学平险', typeId: 1 },
-      { id: 4, name: '建工险', typeId: 3 },
-      { id: 5, name: '燃气险', typeId: 4 },
-      { id: 6, name: '雇主险', typeId: 2 },
-      { id: 7, name: '健康险', typeId: 1 },
-      { id: 8, name: '百万医疗', typeId: 1 },
-      { id: 9, name: '医疗险', typeId: 1 },
-      { id: 10, name: '运动险', typeId: 1 }
-    ].filter(insurance => insurance.typeId === parseInt(typeId))
+    // 使用真实API调用获取数据
+    const response = await insuranceService.getInsuranceByCategory(typeId)
+    
+    if (response.code === 200) {
+      specificInsurances.value = response.data || []
+      console.log('Loaded Specific Insurances:', specificInsurances.value)
+    } else {
+      ElMessage.error(response.message || '加载险种名称数据失败')
+    }
   } catch (error) {
-    console.error('加载具体险种数据失败:', error)
-    ElMessage.error('加载具体险种数据失败')
+    console.error('加载险种名称数据失败:', error)
+    ElMessage.error('加载险种名称数据失败，请稍后重试')
+    
+    // 如果API调用失败，使用默认数据
+    specificInsurances.value = [
+      { id: 1, name: '个人意外险', categoryName: '个人意外险', typeId: 1 },
+      { id: 2, name: '团体意外险', categoryName: '团体意外险', typeId: 2 },
+      { id: 3, name: '学平险', categoryName: '学平险', typeId: 1 },
+      { id: 4, name: '建工险', categoryName: '建工一切', typeId: 3 },
+      { id: 5, name: '燃气险', categoryName: '个人意外险', typeId: 4 },
+      { id: 6, name: '雇主险', categoryName: '团体雇主险', typeId: 2 },
+      { id: 7, name: '健康险', categoryName: '健康险', typeId: 1 },
+      { id: 8, name: '百万医疗', categoryName: '百万医疗', typeId: 1 },
+      { id: 9, name: '医疗险', categoryName: '医疗险', typeId: 1 },
+      { id: 10, name: '运动险', categoryName: '运动险', typeId: 1 },
+      { id: 11, name: '团体雇主险', categoryName: '团体雇主险', typeId: 2 },
+      { id: 12, name: '建工团意', categoryName: '建工团意', typeId: 3 },
+      { id: 13, name: '建工安责', categoryName: '建工安责', typeId: 3 },
+      { id: 14, name: '建工一切', categoryName: '建工一切', typeId: 3 },
+      { id: 15, name: '超赔险', categoryName: '超赔险', typeId: 5 },
+      { id: 16, name: '驾乘险', categoryName: '驾乘险', typeId: 5 },
+      { id: 17, name: '随车雇主', categoryName: '随车雇主', typeId: 5 }
+    ].filter(insurance => insurance.typeId === parseInt(typeId))
   }
 }
 
@@ -478,10 +615,12 @@ const resetForm = () => {
   if (formRef.value) {
     formRef.value.resetFields()
   }
-  // 重置具体险种
+  // 重置险种名称
   specificInsurances.value = []
   // 设置默认成交状态
   formData.dealStatus = '跟进中'
+  // 设置默认客户类型
+  formData.clientType = 'personal'
   // 设置默认提醒时间
   const reminderDate = new Date()
   reminderDate.setDate(reminderDate.getDate() + 3)
@@ -500,13 +639,7 @@ const submitForm = async () => {
     
     // 表单验证
     if (!formRef.value) return
-    await formRef.value.validate((valid, fields) => {
-      if (!valid) {
-        console.log('表单验证失败:', fields)
-        return false
-      }
-      return true
-    })
+    await formRef.value.validate()
     
     // 提交数据
     const response = await businessService.addBusiness(formData)
@@ -519,7 +652,11 @@ const submitForm = async () => {
     }
   } catch (error) {
     console.error('提交失败:', error)
-    ElMessage.error('业务登记失败，请稍后重试')
+    // 如果是表单验证失败，Element Plus会自动显示错误信息
+    // 这里只处理其他类型的错误
+    if (error.name !== 'Error') {
+      ElMessage.error('业务登记失败，请稍后重试')
+    }
   } finally {
     loading.value = false
   }
@@ -532,34 +669,31 @@ const addAgent = async () => {
     
     // 表单验证
     if (!agentFormRef.value) return
-    await agentFormRef.value.validate((valid, fields) => {
-      if (!valid) {
-        console.log('代理人表单验证失败:', fields)
-        return false
-      }
-      return true
-    })
+    const valid = await agentFormRef.value.validate()
     
-    // 提交新增代理人请求
-    const response = await agentService.addAgent(newAgentForm)
-    
-    if (response.code === 200) {
-      ElMessage.success('代理人新增成功')
+    if (valid) {
+      // 调用后端API添加代理人
+      const response = await agentService.addAgent(newAgentForm)
       
-      // 更新代理人列表
-      await loadAgents()
-      
-      // 选择新添加的代理人
-      if (response.data && response.data.id) {
-        formData.agentId = response.data.id
-        searchAgent.value = newAgentForm.name
+      // 处理API响应
+      if (response.code === 200) {
+        ElMessage.success('代理人新增成功')
+        
+        // 更新代理人列表
+        await loadAgents()
+        
+        // 如果添加的代理人与当前搜索的关键词匹配，自动选中该代理人
+        if (response.data && response.data.id) {
+          formData.agentId = response.data.id
+          searchAgent.value = newAgentForm.name
+        }
+        
+        // 关闭模态框并重置表单
+        showAddAgentModal.value = false
+        resetAgentForm()
+      } else {
+        ElMessage.error(response.message || '代理人新增失败')
       }
-      
-      // 关闭模态框并重置表单
-      showAddAgentModal.value = false
-      resetAgentForm()
-    } else {
-      ElMessage.error(response.message || '代理人新增失败')
     }
   } catch (error) {
     console.error('新增代理人失败:', error)
@@ -586,43 +720,133 @@ onMounted(async () => {
 <style scoped>
 /* 组件特定的样式 */
 .business-register-page {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 24px;
+  min-height: 100vh;
+  background-color: #f5f7fa;
 }
 
 .page-header {
-  margin-bottom: 30px;
+  margin-bottom: 32px;
+  text-align: center;
 }
 
-/* 输入框焦点样式优化 */
-.input-focus:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+.page-header h2 {
+  font-weight: 600;
+  color: #1f2937;
 }
 
-/* 下拉菜单样式 */
-.absolute {
-  z-index: 100;
+.page-header p {
+  color: #6b7280;
+  margin-top: 8px;
 }
 
-/* 新增按钮样式 */
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.register-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 32px;
+  background-color: white;
 }
 
-/* 表单区块样式 */
-.bg-white {
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+.form-section {
+  margin-bottom: 40px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.section-divider {
+  margin-bottom: 24px;
+  border-color: #e5e7eb;
+}
+
+.search-container {
+  position: relative;
+}
+
+.search-input {
+  margin-bottom: 4px;
+}
+
+/* 表单按钮区 */
+.form-actions {
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* 对话框样式优化 */
+:deep(.el-dialog__header) {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 12px;
+}
+
+:deep(.el-dialog__title) {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+:deep(.el-dialog__body) {
+  padding: 24px;
+}
+
+:deep(.el-dialog__footer) {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+}
+
+/* 表单组件样式优化 */
+:deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #374151;
+}
+
+:deep(.el-select),
+:deep(.el-input),
+:deep(.el-input-number) {
+  width: 100%;
 }
 
 /* 响应式设计优化 */
 @media (max-width: 768px) {
-  .grid-cols-1.md\:grid-cols-2 {
-    grid-template-columns: 1fr;
+  .business-register-page {
+    padding: 16px;
+  }
+  
+  .register-card {
+    padding: 20px;
+  }
+  
+  :deep(.el-form-item__label) {
+    width: 100px !important;
+  }
+  
+  :deep(.el-col-xs-24) {
+    margin-bottom: 16px;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .form-actions .el-button {
+    margin: 8px 0 !important;
+  }
+}
+
+@media (max-width: 576px) {
+  :deep(.el-form-item__label) {
+    width: 80px !important;
+    font-size: 12px;
+  }
+  
+  :deep(.el-form-item__content) {
+    margin-left: 90px !important;
   }
 }
 </style>

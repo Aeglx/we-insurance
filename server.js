@@ -163,7 +163,7 @@ const setupDatabase = async () => {
 // 获取险种列表
 app.get('/api/insurance/list', async (req, res) => {
   try {
-    const { keyword } = req.query
+    const { keyword, typeId } = req.query
     const where = {}
     
     if (keyword) {
@@ -171,6 +171,10 @@ app.get('/api/insurance/list', async (req, res) => {
         { name: { [db.Sequelize.Op.like]: `%${keyword}%` } },
         { code: { [db.Sequelize.Op.like]: `%${keyword}%` } }
       ]
+    }
+    
+    if (typeId) {
+      where.category_id = typeId
     }
     
     const insuranceList = await db.Insurance.findAll({
@@ -200,10 +204,19 @@ app.get('/api/insurance/list', async (req, res) => {
       }
     })
     
-    res.json({ list: formattedList, total: formattedList.length })
+    res.json({ 
+      code: 200, 
+      message: '获取成功',
+      data: formattedList,
+      total: formattedList.length
+    })
   } catch (error) {
     console.error('获取险种列表失败:', error)
-    res.status(500).json({ error: '获取险种列表失败' })
+    res.status(500).json({ 
+      code: 500, 
+      message: '获取险种列表失败',
+      error: error.message 
+    })
   }
 })
 
@@ -299,13 +312,21 @@ app.delete('/api/insurance/delete/:id', async (req, res) => {
 // 险种分类列表
 app.get('/api/insurance/categories', async (req, res) => {
   try {
-    const categories = await InsuranceCategory.findAll({
+    const categories = await db.InsuranceCategory.findAll({
       order: [['id', 'ASC']]
     })
-    res.json({ categories: categories.map(cat => cat.dataValues) })
+    res.json({ 
+      code: 200, 
+      message: '获取成功',
+      data: categories.map(cat => cat.dataValues) 
+    })
   } catch (error) {
     console.error('获取险种分类失败:', error)
-    res.status(500).json({ error: '获取险种分类失败' })
+    res.status(500).json({ 
+      code: 500, 
+      message: '获取险种分类失败',
+      error: error.message 
+    })
   }
 })
 
@@ -398,7 +419,7 @@ app.post('/api/insurance/category/add', async (req, res) => {
     if (!name) {
       return res.status(400).json({ error: '分类名称不能为空' })
     }
-    const category = await InsuranceCategory.create({ name })
+    const category = await db.InsuranceCategory.create({ name })
     res.json({ code: 200, message: '分类添加成功', data: category.dataValues })
   } catch (error) {
     console.error('新增险种分类失败:', error)
@@ -414,7 +435,7 @@ app.put('/api/insurance/category/update/:id', async (req, res) => {
     if (!name) {
       return res.status(400).json({ error: '分类名称不能为空' })
     }
-    const [updated] = await InsuranceCategory.update({ name }, { where: { id } })
+    const [updated] = await db.InsuranceCategory.update({ name }, { where: { id } })
     if (updated) {
       res.json({ code: 200, message: '分类更新成功' })
     } else {
@@ -431,11 +452,11 @@ app.delete('/api/insurance/category/delete/:id', async (req, res) => {
   try {
     const { id } = req.params
     // 检查是否有险种使用该分类
-    const insuranceCount = await Insurance.count({ where: { category_id: id } })
+    const insuranceCount = await db.Insurance.count({ where: { category_id: id } })
     if (insuranceCount > 0) {
       return res.status(400).json({ error: '该分类正在被险种使用，无法删除' })
     }
-    const deleted = await InsuranceCategory.destroy({ where: { id } })
+    const deleted = await db.InsuranceCategory.destroy({ where: { id } })
     if (deleted) {
       res.json({ code: 200, message: '分类删除成功' })
     } else {
@@ -494,6 +515,54 @@ app.get('/api/user/list', async (req, res) => {
   } catch (error) {
     console.error('获取用户列表失败:', error)
     res.status(500).json({ error: '获取用户列表失败' })
+  }
+})
+
+// 获取出单员列表API
+app.get('/api/underwriter/list', async (req, res) => {
+  try {
+    const { keyword, status } = req.query
+    const where = {
+      role: 'underwriter' // 只查询角色为出单员的用户
+    }
+    
+    if (keyword) {
+      where[db.Sequelize.Op.or] = [
+        { username: { [db.Sequelize.Op.like]: `%${keyword}%` } },
+        { name: { [db.Sequelize.Op.like]: `%${keyword}%` } },
+        { email: { [db.Sequelize.Op.like]: `%${keyword}%` } },
+        { phone: { [db.Sequelize.Op.like]: `%${keyword}%` } }
+      ]
+    }
+    
+    if (status !== undefined) {
+      where.status = status === 'true' || status === true
+    }
+    
+    const underwriterList = await db.User.findAll({
+      where,
+      order: [['created_at', 'DESC']]
+    })
+    
+    // 转换为前端需要的格式
+    const formattedList = underwriterList.map(item => {
+      const dataValues = item.dataValues
+      return {
+        id: dataValues.id,
+        username: dataValues.username,
+        name: dataValues.name,
+        role: dataValues.role,
+        email: dataValues.email,
+        phone: dataValues.phone,
+        status: dataValues.status,
+        createTime: dataValues.created_at
+      }
+    })
+    
+    res.json({ data: formattedList, total: formattedList.length })
+  } catch (error) {
+    console.error('获取出单员列表失败:', error)
+    res.status(500).json({ error: '获取出单员列表失败' })
   }
 })
 

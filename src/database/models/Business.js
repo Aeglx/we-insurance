@@ -45,6 +45,20 @@ const Business = sequelize.define('business', {
   customer_email: {
     type: Sequelize.STRING
   },
+  client_type: {
+    type: Sequelize.ENUM('personal', 'company', 'vehicle'),
+    allowNull: false,
+    defaultValue: 'personal'
+  },
+  personal_name: {
+    type: Sequelize.STRING
+  },
+  company_name: {
+    type: Sequelize.STRING
+  },
+  plate_number: {
+    type: Sequelize.STRING
+  },
   policy_number: {
     type: Sequelize.STRING,
     unique: true
