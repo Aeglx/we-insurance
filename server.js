@@ -6,7 +6,7 @@ import dotenv from 'dotenv'
 import mysql2 from 'mysql2/promise'
 import { sequelize, Sequelize } from './src/database/connection.js'
 import databaseService from './src/services/databaseService.js'
-import { User, Insurance, Business, InsuranceCategory } from './src/database/models/index.js'
+import { User, Insurance, Business, InsuranceCategory, BusinessLevel } from './src/database/models/index.js'
 
 // 加载环境变量
 dotenv.config()
@@ -64,8 +64,13 @@ const createDatabaseIfNotExists = async () => {
     // 关闭连接
     await connection.end()
   } catch (error) {
-    console.error('创建数据库失败:', error)
-    throw error
+    // 如果错误是数据库已存在，则忽略
+    if (error.code === 'ER_DB_CREATE_EXISTS') {
+      console.log(`数据库 ${dbConfig.database} 已存在，跳过创建`)
+    } else {
+      console.error('创建数据库失败:', error)
+      throw error
+    }
   }
 }
 
@@ -112,6 +117,17 @@ const initDatabase = async () => {
         { name: '学平险' }
       ])
       console.log('默认险种分类创建成功！')
+    }
+
+    // 检查是否需要创建默认业务等级
+    const businessLevelCount = await BusinessLevel.count()
+    if (businessLevelCount === 0) {
+      await BusinessLevel.bulkCreate([
+        { name: '一级业务', description: '最高级别业务，保费高，风险大' },
+        { name: '二级业务', description: '中级业务，保费中等，风险中等' },
+        { name: '三级业务', description: '初级业务，保费低，风险小' }
+      ])
+      console.log('默认业务等级创建成功！')
     }
 
     // 返回模型
@@ -724,6 +740,178 @@ app.get('/api/agent/search', async (req, res) => {
   } catch (error) {
     console.error('搜索代理人失败:', error)
     res.status(500).json({ error: '搜索代理人失败' })
+  }
+})
+
+// 业务等级相关API路由
+
+// 获取业务等级列表
+app.get('/api/business-level/list', async (req, res) => {
+  try {
+    const businessLevelList = await db.BusinessLevel.findAll({
+      order: [['id', 'ASC']]
+    })
+    
+    // 转换为前端需要的格式
+    const formattedList = businessLevelList.map(item => {
+      const dataValues = item.dataValues
+      return {
+        id: dataValues.id,
+        name: dataValues.name,
+        description: dataValues.description || '',
+        status: dataValues.status,
+        createTime: dataValues.created_at
+      }
+    })
+    
+    res.json({ list: formattedList, total: formattedList.length })
+  } catch (error) {
+    console.error('获取业务等级列表失败:', error)
+    res.status(500).json({ error: '获取业务等级列表失败' })
+  }
+})
+
+// 获取业务等级详情
+app.get('/api/business-level/detail/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const businessLevel = await db.BusinessLevel.findByPk(id)
+    
+    if (!businessLevel) {
+      return res.status(404).json({ error: '业务等级不存在' })
+    }
+    
+    const dataValues = businessLevel.dataValues
+    res.json({
+      id: dataValues.id,
+      name: dataValues.name,
+      description: dataValues.description || '',
+      status: dataValues.status,
+      createTime: dataValues.created_at
+    })
+  } catch (error) {
+    console.error('获取业务等级详情失败:', error)
+    res.status(500).json({ error: '获取业务等级详情失败' })
+  }
+})
+
+// 添加业务等级
+app.post('/api/business-level/add', async (req, res) => {
+  try {
+    const { name, description, status } = req.body
+    
+    // 验证必填字段
+    if (!name) {
+      return res.status(400).json({ error: '业务等级名称不能为空' })
+    }
+    
+    // 检查是否已存在同名业务等级
+    const existingLevel = await db.BusinessLevel.findOne({
+      where: { name }
+    })
+    
+    if (existingLevel) {
+      return res.status(400).json({ error: '业务等级名称已存在' })
+    }
+    
+    // 创建新的业务等级
+    const newLevel = await db.BusinessLevel.create({
+      name,
+      description: description || '',
+      status: status !== undefined ? status : true
+    })
+    
+    res.json({
+      code: 200,
+      message: '业务等级添加成功',
+      data: {
+        id: newLevel.id,
+        name: newLevel.name,
+        description: newLevel.description,
+        status: newLevel.status
+      }
+    })
+  } catch (error) {
+    console.error('添加业务等级失败:', error)
+    res.status(500).json({ error: '添加业务等级失败' })
+  }
+})
+
+// 更新业务等级
+app.put('/api/business-level/update/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, description, status } = req.body
+    
+    // 验证必填字段
+    if (!name) {
+      return res.status(400).json({ error: '业务等级名称不能为空' })
+    }
+    
+    // 查找业务等级
+    const businessLevel = await db.BusinessLevel.findByPk(id)
+    
+    if (!businessLevel) {
+      return res.status(404).json({ error: '业务等级不存在' })
+    }
+    
+    // 检查是否已存在同名业务等级（排除当前等级）
+    const existingLevel = await db.BusinessLevel.findOne({
+      where: {
+        name,
+        id: { [db.Sequelize.Op.ne]: id }
+      }
+    })
+    
+    if (existingLevel) {
+      return res.status(400).json({ error: '业务等级名称已存在' })
+    }
+    
+    // 更新业务等级
+    await businessLevel.update({
+      name,
+      description: description || '',
+      status: status !== undefined ? status : businessLevel.status
+    })
+    
+    res.json({
+      code: 200,
+      message: '业务等级更新成功',
+      data: {
+        id: businessLevel.id,
+        name: businessLevel.name,
+        description: businessLevel.description,
+        status: businessLevel.status
+      }
+    })
+  } catch (error) {
+    console.error('更新业务等级失败:', error)
+    res.status(500).json({ error: '更新业务等级失败' })
+  }
+})
+
+// 删除业务等级
+app.delete('/api/business-level/delete/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    
+    // 查找业务等级
+    const businessLevel = await db.BusinessLevel.findByPk(id)
+    
+    if (!businessLevel) {
+      return res.status(404).json({ error: '业务等级不存在' })
+    }
+    
+    // 删除业务等级
+    await businessLevel.destroy()
+    
+    res.json({
+      code: 200,
+      message: '业务等级删除成功'
+    })
+  } catch (error) {
+    console.error('删除业务等级失败:', error)
+    res.status(500).json({ error: '删除业务等级失败' })
   }
 })
 

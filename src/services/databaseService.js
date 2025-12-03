@@ -1,6 +1,6 @@
 // 数据库服务层，封装数据库操作
 import { sequelize, testConnection } from '../database/connection.js'
-import { User, Business, Insurance, InsuranceCategory } from '../database/models/index.js'
+import { User, Business, Insurance, InsuranceCategory, BusinessLevel } from '../database/models/index.js'
 
 // 数据库服务
 const databaseService = {

@@ -35,6 +35,12 @@
           >
             险种管理
           </button>
+          <button 
+            @click="activeTab = 'businessLevel'" 
+            :class="['py-4 px-1 border-b-2 font-medium text-sm', activeTab === 'businessLevel' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300']"
+          >
+            业务等级管理
+          </button>
         </div>
       </div>
     </div>
@@ -496,6 +502,37 @@
               <div class="flex items-center">
                 <input 
                   v-model="formData.agent.status" 
+                  type="checkbox" 
+                  class="mr-2"
+                >
+                <label class="text-sm font-medium text-gray-700">启用</label>
+              </div>
+            </div>
+            
+            <!-- 业务等级表单 -->
+            <div v-if="modalType === 'businessLevel'" class="space-y-3">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">业务等级名称</label>
+                <input 
+                  v-model="formData.businessLevel.name" 
+                  type="text" 
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="请输入业务等级名称"
+                >
+                <p v-if="formErrors.name" class="text-sm text-error mt-1">{{ formErrors.name }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">描述</label>
+                <textarea 
+                  v-model="formData.businessLevel.description" 
+                  rows="3" 
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="请输入业务等级描述"
+                ></textarea>
+              </div>
+              <div class="flex items-center">
+                <input 
+                  v-model="formData.businessLevel.status" 
                   type="checkbox" 
                   class="mr-2"
                 >

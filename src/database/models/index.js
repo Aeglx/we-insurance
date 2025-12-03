@@ -3,6 +3,7 @@ import { User, UserModel } from './User.js'
 import { Business, BusinessModel } from './Business.js'
 import { Insurance, InsuranceModel } from './Insurance.js'
 import { InsuranceCategory, InsuranceCategoryModel } from './InsuranceCategory.js'
+import { BusinessLevel, BusinessLevelModel } from './BusinessLevel.js'
 
 // 导出所有模型和模型实例
 export {
@@ -11,10 +12,12 @@ export {
   Business,
   Insurance,
   InsuranceCategory,
+  BusinessLevel,
   
   // 模型实例
   UserModel,
   BusinessModel,
   InsuranceModel,
-  InsuranceCategoryModel
+  InsuranceCategoryModel,
+  BusinessLevelModel
 }
