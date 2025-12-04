@@ -1,6 +1,7 @@
 // 业务记录服务
 import axios from 'axios'
 import { API_BASE_URL, API_PATHS } from '../config/api'
+import { parseExcelFile, validateExcelData, formatBusinessData } from '../utils/excelParser'
 
 // 创建Axios实例
 const api = axios.create({
@@ -165,9 +166,26 @@ const businessService = {
     }
   },
   
+  // 下载导入模板
+  downloadImportTemplate: async () => {
+    try {
+      // 这里假设模板文件在public/templates目录下
+      window.open('/templates/business_import_template.xlsx', '_blank')
+    } catch (error) {
+      console.error('下载模板失败:', error)
+      throw error
+    }
+  },
+  
   // 导入业务列表
   importBusinessList: async (file) => {
     try {
+      // 验证文件类型
+      if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+        throw new Error('请选择Excel文件(.xlsx, .xls)')
+      }
+      
+      // 发送到后端
       const formData = new FormData()
       formData.append('file', file)
       

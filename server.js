@@ -11,6 +11,10 @@ import { User, Insurance, Business, InsuranceCategory, BusinessLevel, BusinessMo
 // 导入模块
 import XLSXModule from 'xlsx';
 const XLSX = XLSXModule.default || XLSXModule;
+import multer from 'multer';
+
+// 配置文件上传
+const upload = multer({ dest: 'uploads/' });
 
 // 加载环境变量
 dotenv.config()
@@ -1682,6 +1686,114 @@ app.get('/api/business/export', async (req, res) => {
     res.status(500).json({ 
       code: 500,
       message: '导出业务记录失败',
+      error: error.message 
+    })
+  }
+})
+
+// 导入业务记录 API
+app.post('/api/business/import', upload.single('file'), async (req, res) => {
+  try {
+    console.log('收到业务记录导入请求:', req.file)
+    
+    // 检查是否上传了文件
+    if (!req.file) {
+      return res.status(400).json({ 
+        code: 400,
+        message: '未上传文件'
+      })
+    }
+    
+    // 读取上传的Excel文件
+    const workbook = XLSX.readFile(req.file.path)
+    
+    // 获取第一个工作表
+    const sheetName = workbook.SheetNames[0]
+    const worksheet = workbook.Sheets[sheetName]
+    
+    // 解析Excel数据
+    const excelData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+    
+    // 检查是否有数据
+    if (excelData.length < 2) {
+      return res.status(400).json({ 
+        code: 400,
+        message: 'Excel文件中没有有效数据'
+      })
+    }
+    
+    // 获取表头
+    const headers = excelData[0]
+    
+    // 检查必要的字段是否存在
+    const requiredFields = ['保单号', '险种名称', '客户名称', '投保人', '被保险人', '保险期限', '询价金额', '成交状态']
+    for (const field of requiredFields) {
+      if (!headers.includes(field)) {
+        return res.status(400).json({ 
+          code: 400,
+          message: `Excel文件缺少必要字段: ${field}`
+        })
+      }
+    }
+    
+    // 准备要导入的数据
+    const importData = []
+    
+    // 成交状态映射
+    const dealStatusMap = {
+      '跟进中': 'pending',
+      '已成交': 'success',
+      '已失效': 'failed'
+    }
+    
+    // 处理数据行
+    for (let i = 1; i < excelData.length; i++) {
+      const row = excelData[i]
+      if (!row || !row[0]) continue // 跳过空行
+      
+      // 创建数据对象
+      const data = {
+        policy_number: row[headers.indexOf('保单号')] || '',
+        customer_name: row[headers.indexOf('客户名称')] || '',
+        policy_holder: row[headers.indexOf('投保人')] || '',
+        insured_person: row[headers.indexOf('被保险人')] || '',
+        insurance_term: row[headers.indexOf('保险期限')] || '',
+        inquiry_amount: parseFloat(row[headers.indexOf('询价金额')].replace(/[\s\u00A0]/g, '').replace(/¥/g, '')) || 0,
+        deal_status: dealStatusMap[row[headers.indexOf('成交状态')]] || 'pending'
+      }
+      
+      // 查询险种信息
+      const insuranceName = row[headers.indexOf('险种名称')] || ''
+      if (insuranceName) {
+        const insurance = await db.Insurance.findOne({ where: { name: insuranceName } })
+        if (insurance) {
+          data.insurance_id = insurance.id
+        }
+      }
+      
+      importData.push(data)
+    }
+    
+    // 批量导入数据
+    const result = await db.Business.bulkCreate(importData, { 
+      updateOnDuplicate: ['customer_name', 'policy_holder', 'insured_person', 'insurance_term', 'inquiry_amount', 'deal_status']
+    })
+    
+    console.log(`业务记录导入成功，共导入 ${result.length} 条记录`)
+    
+    // 返回导入结果
+    res.json({ 
+      code: 200,
+      message: '业务记录导入成功',
+      data: { 
+        importedCount: result.length
+      }
+    })
+  } catch (error) {
+    console.error('导入业务记录失败:', error)
+    res.status(500).json({ 
+      code: 500,
+      message: '导入业务记录失败',
       error: error.message 
     })
   }

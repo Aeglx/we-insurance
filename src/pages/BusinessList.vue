@@ -1,17 +1,31 @@
 <template>
-  <div class="business-list-page">
+  <div class="business-list-page text-xs">
     <!-- 页面标题 -->
     <div class="page-header mb-6">
-      <div class="flex justify-between items-center">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-800">业务列表</h1>
-          <p class="text-gray-500 mt-1">管理和查看所有业务记录</p>
-        </div>
+      <div class="flex justify-end items-center">
         <div class="flex space-x-3">
           <button class="btn-secondary" @click="refreshList">
             <i class="fas fa-sync-alt mr-2"></i>
             刷新列表
           </button>
+          <!-- 批量导入功能 -->
+          <div class="flex space-x-2">
+            <button class="btn-secondary" @click="handleImport">
+              <i class="fas fa-file-import mr-2"></i>
+              导入数据
+              <input
+                ref="fileInput"
+                type="file"
+                accept=".xlsx, .xls"
+                class="hidden"
+                @change="onFileSelected"
+              />
+            </button>
+            <button class="btn-secondary" @click="handleDownloadTemplate">
+              <i class="fas fa-download mr-2"></i>
+              下载模板
+            </button>
+          </div>
           <button class="btn-primary" @click="router.push('/business/register')">
             <i class="fas fa-plus mr-2"></i>
             新增业务
@@ -24,7 +38,7 @@
     <div class="bg-white rounded-lg shadow p-6 card-shadow mb-6">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">保单号/投保人</label>
+          <label class="block text-xs font-medium text-gray-700 mb-1">保单号/投保人</label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
               <i class="fas fa-search"></i>
@@ -40,7 +54,7 @@
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">险种</label>
+          <label class="block text-xs font-medium text-gray-700 mb-1">险种</label>
           <select
             v-model="searchParams.insuranceTypeId"
             class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus"
@@ -54,7 +68,7 @@
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">代理人</label>
+          <label class="block text-xs font-medium text-gray-700 mb-1">代理人</label>
           <select
             v-model="searchParams.agentId"
             class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus"
@@ -70,7 +84,7 @@
       
       <div class="flex flex-wrap items-center gap-4 mt-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">登记日期范围</label>
+          <label class="block text-xs font-medium text-gray-700 mb-1">登记日期范围</label>
           <div class="flex space-x-2">
             <input
               v-model="searchParams.startDate"
@@ -231,6 +245,7 @@ const selectedIds = ref([])
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const fileInput = ref(null)
 
 // 搜索参数
 const searchParams = ref({
@@ -445,6 +460,46 @@ const getToastIcon = (type) => {
     info: 'fas fa-info-circle'
   }
   return icons[type] || icons.info
+}
+
+// 下载导入模板
+const handleDownloadTemplate = async () => {
+  try {
+    await businessService.downloadImportTemplate()
+  } catch (error) {
+    console.error('下载模板失败:', error)
+    showToast('下载模板失败', 'error')
+  }
+}
+
+// 处理导入按钮点击
+const handleImport = () => {
+  fileInput.value.click()
+}
+
+// 处理文件选择
+const onFileSelected = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  try {
+    loading.value = true
+    const response = await businessService.importBusinessList(file)
+    
+    if (response.code === 200) {
+      showToast('导入成功', 'success')
+      loadBusinessList() // 重新加载列表
+    } else {
+      showToast(`导入失败: ${response.message}`, 'error')
+    }
+  } catch (error) {
+    console.error('导入失败:', error)
+    showToast(`导入失败: ${error.message}`, 'error')
+  } finally {
+    loading.value = false
+    // 重置文件输入
+    event.target.value = ''
+  }
 }
 
 // 初始化
