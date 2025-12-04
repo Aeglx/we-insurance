@@ -256,13 +256,6 @@
                     查看
                   </button>
                   <button 
-                    @click="editItem(item)" 
-                    class="text-secondary hover:text-secondary-dark mr-3 text-sm"
-                    title="编辑"
-                  >
-                    编辑
-                  </button>
-                  <button 
                     @click="deleteItem(item.id)" 
                     class="text-error hover:text-error-dark text-sm"
                     title="删除"
