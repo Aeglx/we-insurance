@@ -35,11 +35,11 @@ CREATE TABLE `business` (
   KEY `insurance_id` (`insurance_id`),
   KEY `insurance_type_id` (`insurance_type_id`),
   KEY `specific_insurance_id` (`specific_insurance_id`),
-  CONSTRAINT `business_ibfk_230` FOREIGN KEY (`agent_id`) REFERENCES `user` (`id`) ON UPDATE CASCADE,
-  CONSTRAINT `business_ibfk_231` FOREIGN KEY (`underwriter_id`) REFERENCES `user` (`id`) ON UPDATE CASCADE,
-  CONSTRAINT `business_ibfk_232` FOREIGN KEY (`insurance_id`) REFERENCES `insurance` (`id`) ON UPDATE CASCADE,
-  CONSTRAINT `business_ibfk_233` FOREIGN KEY (`insurance_type_id`) REFERENCES `insurance_category` (`id`) ON UPDATE CASCADE,
-  CONSTRAINT `business_ibfk_234` FOREIGN KEY (`specific_insurance_id`) REFERENCES `insurance` (`id`)
+  CONSTRAINT `business_ibfk_250` FOREIGN KEY (`agent_id`) REFERENCES `user` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `business_ibfk_251` FOREIGN KEY (`underwriter_id`) REFERENCES `user` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `business_ibfk_252` FOREIGN KEY (`insurance_id`) REFERENCES `insurance` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `business_ibfk_253` FOREIGN KEY (`insurance_type_id`) REFERENCES `insurance_category` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `business_ibfk_254` FOREIGN KEY (`specific_insurance_id`) REFERENCES `insurance` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `business` (`id`, `agent_id`, `underwriter_id`, `insurance_id`, `customer_name`, `customer_phone`, `customer_email`, `policy_number`, `premium_amount`, `coverage_amount`, `start_date`, `end_date`, `status`, `inquiry_date`, `approval_date`, `remarks`, `created_at`, `updated_at`, `deleted_at`, `client_type`, `personal_name`, `company_name`, `plate_number`, `insurance_type_id`, `specific_insurance_id`, `inquiry_amount`, `deal_status`, `reminder_time`, `deal_time`, `follow_up_remark`) VALUES (5, 2, 5, 24, '阿松大', '13800138000', '', '', '0.00', '0.00', '2025-12-03 19:10:51', '2026-12-03 19:10:51', 'pending', '2025-12-03 19:10:51', NULL, '', '2025-12-03 19:10:51', '2025-12-03 19:10:51', NULL, 'personal', '', '', '', NULL, NULL, NULL, 'pending', NULL, NULL, NULL), (10, 2, 5, 24, '阿松大等等', '13800138000', '', '', '300.00', '300.00', '2025-12-03 19:35:03', '2026-12-03 19:35:03', 'pending', '2025-12-03 19:35:03', NULL, '', '2025-12-03 19:35:03', '2025-12-03 23:38:26', NULL, 'personal', '阿松大等等', '', '', 1, 24, '300.00', 'success', '2025-12-06 16:00:00', NULL, '');
@@ -101,7 +101,11 @@ CREATE TABLE `business_level` (
   UNIQUE KEY `name_47` (`name`),
   UNIQUE KEY `name_48` (`name`),
   UNIQUE KEY `name_49` (`name`),
-  UNIQUE KEY `name_50` (`name`)
+  UNIQUE KEY `name_50` (`name`),
+  UNIQUE KEY `name_51` (`name`),
+  UNIQUE KEY `name_52` (`name`),
+  UNIQUE KEY `name_53` (`name`),
+  UNIQUE KEY `name_54` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `business_level` (`id`, `name`, `description`, `status`, `created_at`, `updated_at`) VALUES (1, '一级业务', '最高级别业务，保费高，风险大', 1, '2025-12-03 00:42:19', '2025-12-03 00:42:19'), (2, '二级业务', '中级业务，保费中等，风险中等', 1, '2025-12-03 00:42:19', '2025-12-03 00:42:19'), (3, '三级业务', '初级业务，保费低，风险小', 1, '2025-12-03 00:42:19', '2025-12-03 00:42:19');
@@ -174,6 +178,10 @@ CREATE TABLE `insurance` (
   UNIQUE KEY `code_56` (`code`),
   UNIQUE KEY `code_57` (`code`),
   UNIQUE KEY `code_58` (`code`),
+  UNIQUE KEY `code_59` (`code`),
+  UNIQUE KEY `code_60` (`code`),
+  UNIQUE KEY `code_61` (`code`),
+  UNIQUE KEY `code_62` (`code`),
   KEY `category_id` (`category_id`),
   CONSTRAINT `insurance_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `insurance_category` (`id`) ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=53 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -243,7 +251,12 @@ CREATE TABLE `insurance_category` (
   UNIQUE KEY `name_55` (`name`),
   UNIQUE KEY `name_56` (`name`),
   UNIQUE KEY `name_57` (`name`),
-  UNIQUE KEY `name_58` (`name`)
+  UNIQUE KEY `name_58` (`name`),
+  UNIQUE KEY `name_59` (`name`),
+  UNIQUE KEY `name_60` (`name`),
+  UNIQUE KEY `name_61` (`name`),
+  UNIQUE KEY `name_62` (`name`),
+  UNIQUE KEY `name_63` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `insurance_category` (`id`, `name`, `created_at`, `updated_at`) VALUES (1, '个人意外险', '2025-12-02 21:49:13', '2025-12-02 21:49:13'), (2, '团体意外险', '2025-12-02 21:49:13', '2025-12-02 21:49:13'), (3, '健康险', '2025-12-02 21:49:13', '2025-12-02 21:49:13'), (5, '财产险', '2025-12-02 21:49:13', '2025-12-02 21:49:13'), (6, '学平险', '2025-12-02 21:49:13', '2025-12-02 21:49:13'), (19, '运动险', '2025-12-02 22:47:51', '2025-12-02 22:47:51'), (20, '驾乘险', '2025-12-02 22:47:57', '2025-12-02 22:47:57'), (21, '超赔险', '2025-12-02 22:48:04', '2025-12-02 22:48:04'), (22, '旅游险', '2025-12-02 22:48:12', '2025-12-02 22:48:12'), (26, '责任险', '2025-12-02 23:03:10', '2025-12-02 23:03:10'), (28, '团体雇主险', '2025-12-02 23:03:22', '2025-12-02 23:03:22'), (29, '随车雇主', '2025-12-02 23:03:27', '2025-12-02 23:03:27'), (30, '百万医疗', '2025-12-02 23:03:56', '2025-12-02 23:03:56'), (31, '医疗险', '2025-12-02 23:11:32', '2025-12-02 23:11:32'), (32, '建工团意', '2025-12-02 23:16:12', '2025-12-02 23:16:12'), (33, '建工安责', '2025-12-02 23:16:23', '2025-12-02 23:16:23'), (34, '建工一切', '2025-12-02 23:16:29', '2025-12-02 23:16:29'), (35, '诉责保全', '2025-12-02 23:16:38', '2025-12-02 23:16:38');
@@ -319,7 +332,12 @@ CREATE TABLE `user` (
   UNIQUE KEY `username_55` (`username`),
   UNIQUE KEY `username_56` (`username`),
   UNIQUE KEY `username_57` (`username`),
-  UNIQUE KEY `username_58` (`username`)
+  UNIQUE KEY `username_58` (`username`),
+  UNIQUE KEY `username_59` (`username`),
+  UNIQUE KEY `username_60` (`username`),
+  UNIQUE KEY `username_61` (`username`),
+  UNIQUE KEY `username_62` (`username`),
+  UNIQUE KEY `username_63` (`username`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `user` (`id`, `username`, `password`, `name`, `role`, `email`, `phone`, `department`, `status`, `created_at`, `updated_at`, `deleted_at`) VALUES (1, 'admin', 'admin123', '系统管理员', 'admin', 'admin@example.com', '13800138000', NULL, 1, '2025-12-02 21:49:13', '2025-12-02 21:49:13', NULL), (2, '5F2709182', 'agent123', '张三', 'agent', NULL, '13731461536', '渠道', 1, '2025-12-03 17:11:49', '2025-12-03 17:11:49', NULL), (3, '674752089', 'agent123', '李四', 'agent', NULL, '13731461539', '直客', 1, '2025-12-03 17:12:32', '2025-12-03 17:12:32', NULL), (5, 'shi_xiongfeng', 'underwriter123', '史雄风', 'underwriter', 'shi@example.com', '13800138001', NULL, 1, '2025-12-04 02:24:46', '2025-12-04 02:24:46', NULL), (6, 'hao_ming', 'underwriter123', '郝明', 'underwriter', 'hao@example.com', '13800138002', NULL, 1, '2025-12-04 02:24:46', '2025-12-04 02:24:46', NULL);
