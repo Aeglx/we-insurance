@@ -170,12 +170,26 @@ BusinessModel.getBusinessDetailWithRelations = async (id) => {
 
 BusinessModel.getStatistics = async (params = {}) => {
   // 实现统计查询逻辑
-  const { startDate, endDate, agentId, insuranceType } = params
+  const { startDate, endDate, agentId, insuranceType, date, dealStatus } = params
   const whereClause = {}
   
+  // 按日期范围过滤
   if (startDate && endDate) {
     whereClause.inquiry_date = {
       [Sequelize.Op.between]: [startDate, endDate]
+    }
+  } 
+  // 按特定日期过滤
+  else if (date) {
+    // 创建当天的开始和结束时间
+    const startOfDay = new Date(date)
+    startOfDay.setHours(0, 0, 0, 0)
+    
+    const endOfDay = new Date(date)
+    endOfDay.setHours(23, 59, 59, 999)
+    
+    whereClause.inquiry_date = {
+      [Sequelize.Op.between]: [startOfDay, endOfDay]
     }
   }
   
@@ -190,20 +204,79 @@ BusinessModel.getStatistics = async (params = {}) => {
   // 获取总询价数
   const totalInquiry = await Business.count(whereClause)
   
-  // 获取总成交数（已批准的记录）
-  const totalDeal = await Business.count({
-    ...whereClause,
-    status: 'approved'
-  })
+  // 获取总成交数（考虑成交状态参数）
+  const dealWhereClause = { ...whereClause }
+  if (dealStatus) {
+    dealWhereClause.deal_status = dealStatus
+  } else {
+    // 默认统计已成交的记录
+    dealWhereClause.deal_status = 'success'
+  }
+  
+  const totalDeal = await Business.count(dealWhereClause)
   
   // 获取总保费
   const totalPremium = await Business.sum('premium_amount', whereClause)
+  
+  // 获取今日询价数（登记日期为当前日期的所有数据）
+  const today = new Date()
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999)
+  
+  console.log('今日查询范围:', startOfToday, '至', endOfToday)
+  
+  const todayWhereClause = {
+    inquiry_date: {
+      [Sequelize.Op.between]: [startOfToday, endOfToday]
+    }
+  }
+  
+  if (agentId) {
+    todayWhereClause.agent_id = agentId
+  }
+  
+  if (insuranceType) {
+    todayWhereClause.insurance_type = insuranceType
+  }
+  
+  const todayInquiryCount = await Business.count(todayWhereClause)
+  
+  // 获取今日成交数（登记日期为当前日期且成交状态为已成交的数据）
+  const todayDealWhereClause = {
+    ...todayWhereClause,
+    deal_status: 'success'
+  }
+  
+  const todayDealCount = await Business.count(todayDealWhereClause)
+  
+  // 获取本月业绩（保费总和）
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)
+  
+  const monthlyWhereClause = {
+    inquiry_date: {
+      [Sequelize.Op.between]: [startOfMonth, endOfMonth]
+    }
+  }
+  
+  if (agentId) {
+    monthlyWhereClause.agent_id = agentId
+  }
+  
+  if (insuranceType) {
+    monthlyWhereClause.insurance_type = insuranceType
+  }
+  
+  const monthlyPerformance = await Business.sum('premium_amount', monthlyWhereClause) || 0
   
   return {
     totalInquiry,
     totalDeal,
     totalPremium,
-    conversionRate: totalInquiry > 0 ? (totalDeal / totalInquiry * 100).toFixed(2) : 0
+    conversionRate: totalInquiry > 0 ? (totalDeal / totalInquiry * 100).toFixed(2) : 0,
+    todayInquiryCount,
+    todayDealCount,
+    monthlyPerformance
   }
 }
 

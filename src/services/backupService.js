@@ -235,9 +235,9 @@ class BackupService {
         )
         
         // 删除所有表
-        if (tables.length > 0) {
-          const tableNames = tables.map(table => table.table_name)
-          if (tableNames.length > 0) {
+        if (tables && tables.length > 0) {
+          const tableNames = tables.map(table => table.table_name).filter(Boolean)
+          if (tableNames && tableNames.length > 0) {
             const dropTablesSql = `DROP TABLE IF EXISTS ${tableNames.join(', ')}`
             await connection.query(dropTablesSql)
             console.log('成功删除所有现有表')

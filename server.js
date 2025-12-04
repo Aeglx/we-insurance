@@ -93,8 +93,9 @@ const initDatabase = async () => {
 
     console.log('数据库表初始化完成！')
     
-    // 导入最新的数据库备份（强制模式：删除现有表并重新导入）
-    await backupService.importDatabase(true)
+    // 导入最新的数据库备份（非强制模式：只在表不存在时导入）
+    // await backupService.importDatabase(true) - 注释掉强制导入，避免每次重启都删除数据
+    await backupService.importDatabase(false)
     
     // 初始化备份服务
     await backupService.init()
@@ -141,7 +142,7 @@ const initDatabase = async () => {
     }
 
     // 返回模型
-    return { User, Insurance, Business, InsuranceCategory }
+    return { User, Insurance, Business, InsuranceCategory, BusinessModel }
   } catch (error) {
     console.error('数据库初始化失败:', error)
     throw error
@@ -153,10 +154,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' })
 })
 
-// 初始化数据库
-let db
+// 测试路由
+app.get('/api/test', (req, res) => {
+  res.json({ status: 'ok', message: 'Test route is working' })
+})
 
+// 初始化数据库
 // 初始化数据库并获取模型
+let db
 const setupDatabase = async () => {
   try {
     db = await initDatabase()
@@ -1198,7 +1203,7 @@ app.post('/api/business/add', async (req, res) => {
     
     // 创建业务记录
     const business = await db.Business.create(businessData)
-    
+
     // 记录操作日志
     try {
       await db.OperationLog.create({
@@ -1498,6 +1503,30 @@ app.delete('/api/business/delete/:id', async (req, res) => {
   }
 })
 
+// 获取业务统计数据
+app.get('/api/business/statistics', async (req, res) => {
+  try {
+    console.log('收到统计数据请求:', req.query)
+    const params = req.query
+    // 使用db对象中的BusinessModel
+    const statistics = await db.BusinessModel.getStatistics(params)
+    console.log('统计数据计算结果:', statistics)
+    
+    res.json({ 
+      code: 200,
+      message: '获取业务统计数据成功',
+      data: statistics 
+    })
+  } catch (error) {
+    console.error('获取业务统计数据失败:', error)
+    res.status(500).json({ 
+      code: 500,
+      message: '获取业务统计数据失败',
+      error: error.message 
+    })
+  }
+})
+
 // 导出业务记录
 app.get('/api/business/export', async (req, res) => {
   console.log('导出业务记录API被调用！')
@@ -1644,9 +1673,18 @@ app.get('/api/business/export', async (req, res) => {
 // 启动服务器
 const PORT = 3000 // 强制设置后端端口为3000
 
-app.listen(PORT, async () => {
-  console.log(`后端服务器正在运行，端口: ${PORT}`)
-  
-  // 初始化数据库
-  await setupDatabase()
-})
+// 先初始化数据库，再启动服务器
+async function startServer() {
+  try {
+    await setupDatabase()
+    app.listen(PORT, () => {
+      console.log(`后端服务器正在运行，端口: ${PORT}`)
+    })
+  } catch (error) {
+    console.error('服务器启动失败:', error)
+    process.exit(1)
+  }
+}
+
+// 启动服务器
+startServer()

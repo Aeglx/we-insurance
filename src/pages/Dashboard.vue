@@ -158,13 +158,32 @@ const timeRange = ref('week')
 
 // 统计数据
 const statistics = ref({
-  todayInquiryCount: 24,
-  todayDealCount: 8,
-  monthlyPerformance: 128500,
-  todayInquiryGrowth: 12,
-  todayDealGrowth: 8,
-  monthlyPerformanceGrowth: -3
+  todayInquiryCount: 0,
+  todayDealCount: 0,
+  monthlyPerformance: 0,
+  todayInquiryGrowth: 0,
+  todayDealGrowth: 0,
+  monthlyPerformanceGrowth: 0
 })
+
+// 获取统计数据
+const fetchStatistics = async () => {
+  try {
+    // 从API获取统计数据
+    const response = await businessService.getBusinessStatistics()
+    
+    // 更新统计数据
+    statistics.value = {
+      ...statistics.value,
+      todayInquiryCount: response.todayInquiryCount || 0,
+      todayDealCount: response.todayDealCount || 0,
+      monthlyPerformance: response.monthlyPerformance || 0
+    }
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+    // API调用失败时，保持数据为默认值0
+  }
+}
 
 // 最近业务数据
 const recentBusiness = ref([
@@ -204,42 +223,49 @@ const userInfo = computed(() => {
 })
 
 // 初始化数据
-const initData = () => {
+const initData = async () => {
+  await fetchStatistics()
+  await loadRecentBusiness()
   initCharts()
 }
 
-// 加载最近业务 - 模拟数据，不再调用API
-const loadRecentBusiness = () => {
-  // 使用模拟数据
-  recentBusiness.value = [
-    {
-      id: 1,
-      agentName: '张三',
-      insuranceName: '个人意外险',
-      customerName: '李明',
-      amount: 2500,
-      status: '已成交',
-      date: '2025-07-20'
-    },
-    {
-      id: 2,
-      agentName: '王五',
-      insuranceName: '团体意外险',
-      customerName: 'ABC科技有限公司',
-      amount: 15000,
-      status: '跟进中',
-      date: '2025-07-19'
-    },
-    {
-      id: 3,
-      agentName: '李四',
-      insuranceName: '学平险',
-      customerName: '希望小学',
-      amount: 8000,
-      status: '已成交',
-      date: '2025-07-18'
-    }
-  ]
+// 加载最近业务
+const loadRecentBusiness = async () => {
+  try {
+    // 这里可以添加从API获取最近业务的逻辑
+    // 目前保持模拟数据，因为API可能还没实现
+    recentBusiness.value = [
+      {
+        id: 1,
+        agentName: '张三',
+        insuranceName: '个人意外险',
+        customerName: '李明',
+        amount: 2500,
+        status: '已成交',
+        date: '2025-07-20'
+      },
+      {
+        id: 2,
+        agentName: '王五',
+        insuranceName: '团体意外险',
+        customerName: 'ABC科技有限公司',
+        amount: 15000,
+        status: '跟进中',
+        date: '2025-07-19'
+      },
+      {
+        id: 3,
+        agentName: '李四',
+        insuranceName: '学平险',
+        customerName: '希望小学',
+        amount: 8000,
+        status: '已成交',
+        date: '2025-07-18'
+      }
+    ]
+  } catch (error) {
+    console.error('获取最近业务失败:', error)
+  }
 }
 
 // 初始化图表

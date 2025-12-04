@@ -109,14 +109,15 @@
           <h3 class="section-title">客户信息区</h3>
           <el-divider class="section-divider"></el-divider>
           <el-row :gutter="24">
-            <!-- 客户类型字段隐藏 -->
-            <el-form-item label="客户类型" prop="clientType" required v-show="false">
-              <el-select v-model="formData.clientType" placeholder="请选择客户类型" @change="handleClientTypeChange">
-                <el-option label="个人客户" value="personal"></el-option>
-                <el-option label="企业客户" value="company"></el-option>
-                <el-option label="车类客户" value="vehicle"></el-option>
-              </el-select>
-            </el-form-item>
+            <!-- 客户类型字段显示 -->
+            <el-col :span="12">
+              <el-form-item label="客户类别" prop="clientType" required>
+                <el-select v-model="formData.clientType" placeholder="请选择客户类别" @change="handleClientTypeChange">
+                  <el-option label="个人客户" value="personal"></el-option>
+                  <el-option label="企业客户" value="company"></el-option>
+                </el-select>
+              </el-form-item>
+            </el-col>
             
             <!-- 个人客户字段 -->
             <el-col :span="12" v-if="formData.clientType === 'personal'">
@@ -306,13 +307,7 @@ const formRules = reactive({
       trigger: ['blur', 'change']
     }
   ],
-  plateNumber: [
-    {
-      required: () => formData.clientType === 'vehicle',
-      message: '请输入车牌号',
-      trigger: ['blur', 'change']
-    }
-  ],
+
   inquiryAmount: [{ required: true, message: '请输入询价金额', trigger: 'blur' }, { type: 'number', min: 0, message: '询价金额不能为负数', trigger: 'blur' }],
   dealStatus: [{ required: true, message: '请选择成交状态', trigger: 'change' }],
   reminderTime: [
@@ -365,11 +360,6 @@ const handleClientTypeChange = () => {
     // 企业客户：保留personalName和companyName，清空其他
     formData.clientName = ''
     formData.plateNumber = ''
-  } else if (formData.clientType === 'vehicle') {
-    // 车类客户：保留plateNumber，清空其他
-    formData.clientName = ''
-    formData.personalName = ''
-    formData.companyName = ''
   }
 }
 
@@ -494,30 +484,7 @@ const handleAddAgent = async () => {
   }
 }
 
-// 险种分类与客户类型的映射关系
-const insuranceTypeToClientType = {
-  // 按险种分类名称映射
-  '个人意外险': 'personal',
-  '健康险': 'personal',
-  '学平险': 'personal',
-  '运动险': 'personal',
-  '旅游险': 'personal',
-  '百万医疗': 'personal',
-  '医疗险': 'personal',
-  '团体意外险': 'company',
-  '团体雇主险': 'company',
-  '建工团意': 'company',
-  '建工安责': 'company',
-  '建工一切': 'company',
-  '超赔险': 'vehicle',
-  '驾乘险': 'vehicle',
-  '随车雇主': 'vehicle',
-  // 按险种名称映射
-  '太平洋个人意外伤害医疗': 'personal',
-  '太平洋个人意外伤害': 'personal',
-  '太平洋团体意外伤害医疗': 'company',
-  '太平洋团体意外伤害': 'company'
-}
+
 
 // 险种分类选择变化
 const onInsuranceTypeChange = async (typeId) => {
@@ -534,21 +501,12 @@ const onInsuranceTypeChange = async (typeId) => {
 // 险种名称选择变化
 const onSpecificInsuranceChange = (insuranceId) => {
   if (insuranceId) {
-    // 根据险种名称设置客户类型
+    // 获取选中的险种信息
     const selectedInsurance = specificInsurances.value.find(ins => ins.id === insuranceId)
     if (selectedInsurance) {
       console.log('Selected Insurance:', selectedInsurance)
       console.log('Insurance Name:', selectedInsurance.name)
       console.log('Insurance Category:', selectedInsurance.categoryName)
-      console.log('Mapped Client Type by Name:', insuranceTypeToClientType[selectedInsurance.name])
-      console.log('Mapped Client Type by Category:', insuranceTypeToClientType[selectedInsurance.categoryName])
-      
-      // 优先使用categoryName进行映射，如果没有再尝试name
-      formData.clientType = insuranceTypeToClientType[selectedInsurance.categoryName] || 
-                             insuranceTypeToClientType[selectedInsurance.name] || 
-                             'personal'
-      console.log('Client Type Set To:', formData.clientType)
-      handleClientTypeChange() // 重置相关字段
     }
   }
 }
