@@ -271,9 +271,13 @@ const initData = async () => {
 // 加载代理人数据
 const loadAgents = async () => {
   try {
+    console.log('开始加载代理人数据')
     const response = await agentService.getAgentList()
+    console.log('代理人数据响应:', response)
     if (response.code === 200) {
+      console.log('代理人数据:', response.data)
       agents.value = response.data
+      console.log('代理人数据已更新:', agents.value)
     }
   } catch (error) {
     console.error('加载代理人数据失败:', error)
@@ -283,9 +287,13 @@ const loadAgents = async () => {
 // 加载险种数据
 const loadInsuranceTypes = async () => {
   try {
+    console.log('开始加载险种数据')
     const response = await insuranceService.getInsuranceList()
+    console.log('险种数据响应:', response)
     if (response.code === 200) {
+      console.log('险种数据:', response.data)
       insuranceTypes.value = response.data
+      console.log('险种数据已更新:', insuranceTypes.value)
     }
   } catch (error) {
     console.error('加载险种数据失败:', error)

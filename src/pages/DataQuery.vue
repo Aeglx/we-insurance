@@ -1,40 +1,70 @@
 <template>
-  <div class="bg-gray-50 min-h-screen">
-    <!-- 页面头部 -->
-    <div class="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-xl font-semibold text-gray-800">数据查询</h1>
-          <p class="text-sm text-gray-500 mt-1">查询和统计业务数据</p>
-        </div>
-      </div>
-    </div>
+  <div class="bg-gray-50 min-h-screen text-sm">
     
     <!-- 主要内容 -->
     <div class="container mx-auto px-4 py-6">
       <!-- 查询条件区域 -->
       <div class="bg-white rounded-lg shadow-md p-4 mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <!-- 业务员 -->
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">业务员</label>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- 代理人 -->
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">代理人</label>
+            <el-autocomplete
+              v-model="searchAgent"
+              :fetch-suggestions="querySearchAgent"
+              @select="onAgentSelect"
+              placeholder="输入代理人姓名搜索"
+              clearable
+              class="w-full"
+              value-key="name"
+            >
+              <template #default="{ item }">
+                <div class="flex justify-between">
+                  <span>{{ item.name }}</span>
+                  <span class="text-gray-400 text-xs">{{ item.department || '无部门' }}</span>
+                </div>
+              </template>
+            </el-autocomplete>
+          </div>
+          
+          <!-- 出单员 -->
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">出单员</label>
+            <el-select
+              v-model="filters.underwriterId"
+              placeholder="请选择出单员"
+              class="w-full"
+              filterable
+            >
+              <el-option
+                v-for="underwriter in underwriterList"
+                :key="underwriter.id"
+                :label="underwriter.name"
+                :value="underwriter.id"
+              ></el-option>
+            </el-select>
+          </div>
+          
+          <!-- 险种分类 -->
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">险种分类</label>
             <select 
-              v-model="filters.agentId" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              v-model="filters.insuranceTypeId" 
+              class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
             >
               <option value="">全部</option>
-              <option v-for="agent in agentList" :key="agent.id" :value="agent.id">
-                {{ agent.name }}
+              <option v-for="category in insuranceCategoryList" :key="category.id" :value="category.id">
+                {{ category.name }}
               </option>
             </select>
           </div>
           
-          <!-- 险种 -->
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">险种</label>
+          <!-- 险种名称 -->
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">险种名称</label>
             <select 
-              v-model="filters.insuranceId" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              v-model="filters.specificInsuranceId" 
+              class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
             >
               <option value="">全部</option>
               <option v-for="insurance in insuranceList" :key="insurance.id" :value="insurance.id">
@@ -43,65 +73,88 @@
             </select>
           </div>
           
-          <!-- 成交状态 -->
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">成交状态</label>
-            <select 
-              v-model="filters.status" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-            >
-              <option value="">全部</option>
-              <option value="1">已成交</option>
-              <option value="2">进行中</option>
-              <option value="3">已失败</option>
-            </select>
-          </div>
-          
           <!-- 客户名称 -->
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">客户名称</label>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">客户名称</label>
             <input 
               type="text" 
               v-model="filters.customerName" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
               placeholder="请输入客户名称"
             >
           </div>
           
+          <!-- 询价金额 -->
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">询价金额</label>
+            <div class="flex gap-1">
+              <input 
+                type="number" 
+                v-model="filters.minAmount" 
+                class="flex-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
+                placeholder="最小值"
+                min="0"
+                step="0.01"
+              >
+              <input 
+                type="number" 
+                v-model="filters.maxAmount" 
+                class="flex-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
+                placeholder="最大值"
+                min="0"
+                step="0.01"
+              >
+            </div>
+          </div>
+          
+          <!-- 成交状态 -->
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">成交状态</label>
+            <select 
+              v-model="filters.dealStatus" 
+              class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
+            >
+              <option value="">全部</option>
+              <option value="pending">跟进中</option>
+              <option value="success">已成交</option>
+              <option value="failed">已失效</option>
+            </select>
+          </div>
+          
           <!-- 开始日期 -->
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">开始日期</label>
             <input 
               type="date" 
               v-model="filters.startDate" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
               placeholder="yyyy/mm/日"
             >
           </div>
           
           <!-- 结束日期 -->
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">结束日期</label>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">结束日期</label>
             <input 
               type="date" 
               v-model="filters.endDate" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
               placeholder="yyyy/mm/日"
             >
           </div>
         </div>
         
         <!-- 操作按钮 -->
-        <div class="mt-4 flex justify-end gap-3">
+        <div class="mt-3 flex justify-end gap-2">
           <button 
             @click="resetFilters" 
-            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+            class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
           >
             重置
           </button>
           <button 
             @click="search" 
-            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            class="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm"
           >
             查询
           </button>
@@ -111,18 +164,12 @@
       <!-- 查询结果区域 -->
       <div class="bg-white rounded-lg shadow-md p-4">
         <!-- 导出按钮 -->
-        <div class="flex justify-end gap-3 mb-4">
+        <div class="flex justify-end gap-2 mb-4">
           <button 
             @click="exportExcel" 
-            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+            class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
           >
             <i class="fas fa-file-excel mr-1"></i>导出Excel
-          </button>
-          <button 
-            @click="exportPDF" 
-            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-          >
-            <i class="fas fa-file-pdf mr-1"></i>导出PDF
           </button>
         </div>
         
@@ -138,19 +185,28 @@
                   代理人
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  险种
+                  出单员
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  客户
+                  险种分类
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  金额
+                  险种名称
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  状态
+                  客户名称
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  日期
+                  询价金额
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  成交状态
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  登记日期
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  跟进备注
                 </th>
                 <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   操作
@@ -163,43 +219,52 @@
                   <input type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary">
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {{ getAgentName(item.agentId) }}
+                  {{ item.agentName || getAgentName(item.agentId) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {{ getInsuranceName(item.insuranceId) }}
+                  {{ item.underwriterName || getUnderwriterName(item.underwriterId) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {{ item.customer_name || item.insuredName }}
+                  {{ getInsuranceCategoryName(item.insuranceTypeId) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  ¥{{ (item.actual_amount || item.amount).toFixed(2) }}
+                  {{ item.insuranceName || getSpecificInsuranceName(item.insuranceId) }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ item.insuredName || item.customer_name }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  ¥{{ item.inquiryAmount ? item.inquiryAmount.toFixed(2) : item.premium ? item.premium.toFixed(2) : '0.00' }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <span :class="['px-2 py-1 text-xs rounded-full', statusClass(item.status)]">
-                    {{ getStatusText(item.status) }}
+                  <span :class="['px-2 py-1 text-xs rounded-full', dealStatusClass(item.dealStatus || item.status)]">
+                    {{ item.dealStatus || getStatusText(item.status) }}
                   </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {{ formatDate(item.created_at || item.createTime) }}
+                  {{ formatDate(item.registrationDate || item.createTime || item.created_at) }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate" title="{{ item.remark || item.remarks || item.followUpRemark }}">
+                  {{ item.remark || item.remarks || item.followUpRemark || '-' }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button 
                     @click="viewDetail(item.id)" 
-                    class="text-primary hover:text-primary-dark mr-3"
+                    class="text-primary hover:text-primary-dark mr-3 text-sm"
                     title="查看"
                   >
                     查看
                   </button>
                   <button 
                     @click="editItem(item)" 
-                    class="text-secondary hover:text-secondary-dark mr-3"
+                    class="text-secondary hover:text-secondary-dark mr-3 text-sm"
                     title="编辑"
                   >
                     编辑
                   </button>
                   <button 
                     @click="deleteItem(item.id)" 
-                    class="text-error hover:text-error-dark"
+                    class="text-error hover:text-error-dark text-sm"
                     title="删除"
                   >
                     删除
@@ -297,9 +362,11 @@
 <script setup>
 import { ref, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
 import businessService from '../services/businessService'
 import insuranceService from '../services/insuranceService'
 import agentService from '../services/agentService'
+import underwriterService from '../services/underwriterService'
 
 // 获取toast实例
 const toast = inject('toast')
@@ -313,18 +380,31 @@ const businessList = ref([])
 // 险种列表
 const insuranceList = ref([])
 
+// 险种分类列表
+const insuranceCategoryList = ref([])
+
 // 代理人列表
 const agentList = ref([])
+
+// 出单员列表
+const underwriterList = ref([])
 
 // 筛选条件
 const filters = ref({
   agentId: '',
-  insuranceId: '',
-  status: '',
+  underwriterId: '',
+  insuranceTypeId: '',
+  specificInsuranceId: '',
   customerName: '',
+  minAmount: '',
+  maxAmount: '',
+  dealStatus: '',
   startDate: '',
   endDate: ''
 })
+
+// 代理人搜索相关
+const searchAgent = ref('')
 
 // 分页信息
 const currentPage = ref(1)
@@ -339,8 +419,33 @@ const loading = ref(false)
 onMounted(() => {
   loadData()
   loadInsuranceList()
+  loadInsuranceCategoryList()
   loadAgentList()
+  loadUnderwriterList()
 })
+
+// 代理人搜索建议
+const querySearchAgent = (queryString, cb) => {
+  if (!queryString) {
+    cb([])
+    return
+  }
+  
+  // 从agentList中过滤匹配的代理人
+  const results = agentList.value.filter(agent => {
+    return agent.name.toLowerCase().includes(queryString.toLowerCase())
+  })
+  
+  // 模拟异步请求延迟
+  setTimeout(() => {
+    cb(results)
+  }, 200)
+}
+
+// 选择代理人
+const onAgentSelect = (agent) => {
+  filters.value.agentId = agent.id
+}
 
 // 加载业务数据
 const loadData = async () => {
@@ -354,8 +459,8 @@ const loadData = async () => {
     }
     
     const response = await businessService.getBusinessList(params)
-    businessList.value = response.list || []
-    total.value = response.total || 0
+    businessList.value = response.data?.records || []
+    total.value = response.data?.total || 0
     totalPages.value = Math.ceil(total.value / pageSize.value)
   } catch (error) {
     console.error('加载业务数据失败:', error)
@@ -369,9 +474,19 @@ const loadData = async () => {
 const loadInsuranceList = async () => {
   try {
     const response = await insuranceService.getInsuranceList()
-    insuranceList.value = response.list || []
+    insuranceList.value = response.data || []
   } catch (error) {
     console.error('加载险种列表失败:', error)
+  }
+}
+
+// 加载险种分类列表
+const loadInsuranceCategoryList = async () => {
+  try {
+    const response = await insuranceService.getInsuranceCategoryList()
+    insuranceCategoryList.value = response.data || []
+  } catch (error) {
+    console.error('加载险种分类列表失败:', error)
   }
 }
 
@@ -379,9 +494,19 @@ const loadInsuranceList = async () => {
 const loadAgentList = async () => {
   try {
     const response = await agentService.getAgentList()
-    agentList.value = response.list || []
+    agentList.value = response.data || []
   } catch (error) {
     console.error('加载代理人列表失败:', error)
+  }
+}
+
+// 加载出单员列表
+const loadUnderwriterList = async () => {
+  try {
+    const response = await underwriterService.getUnderwriterList()
+    underwriterList.value = response.data || []
+  } catch (error) {
+    console.error('加载出单员列表失败:', error)
   }
 }
 
@@ -395,12 +520,17 @@ const search = () => {
 const resetFilters = () => {
   filters.value = {
     agentId: '',
-    insuranceId: '',
-    status: '',
+    underwriterId: '',
+    insuranceTypeId: '',
+    specificInsuranceId: '',
     customerName: '',
+    minAmount: '',
+    maxAmount: '',
+    dealStatus: '',
     startDate: '',
     endDate: ''
   }
+  searchAgent.value = ''
   currentPage.value = 1
   loadData()
 }
@@ -440,16 +570,7 @@ const exportExcel = async () => {
   }
 }
 
-// 导出PDF
-const exportPDF = async () => {
-  try {
-    await businessService.exportBusinessList(filters.value, 'pdf')
-    toast.success('PDF导出成功')
-  } catch (error) {
-    console.error('PDF导出失败:', error)
-    toast.error('PDF导出失败')
-  }
-}
+
 
 // 查看详情
 const viewDetail = (id) => {
@@ -465,7 +586,11 @@ const editItem = (item) => {
 
 // 删除项目
 const deleteItem = async (id) => {
-  if (confirm('确定要删除该记录吗？')) {
+  ElMessageBox.confirm('确定要删除该记录吗？', '删除确认', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).then(async () => {
     try {
       await businessService.deleteBusiness(id)
       toast.success('删除成功')
@@ -474,7 +599,9 @@ const deleteItem = async (id) => {
       console.error('删除失败:', error)
       toast.error('删除失败')
     }
-  }
+  }).catch(() => {
+    // 取消删除
+  })
 }
 
 // 获取险种名称
@@ -483,10 +610,28 @@ const getInsuranceName = (id) => {
   return insurance ? insurance.name : ''
 }
 
+// 获取险种分类名称
+const getInsuranceCategoryName = (id) => {
+  const category = insuranceCategoryList.value.find(item => item.id === id)
+  return category ? category.name : ''
+}
+
+// 获取具体险种名称
+const getSpecificInsuranceName = (id) => {
+  const insurance = insuranceList.value.find(item => item.id === id)
+  return insurance ? insurance.name : ''
+}
+
 // 获取代理人名称
 const getAgentName = (id) => {
   const agent = agentList.value.find(item => item.id === id)
   return agent ? agent.name : ''
+}
+
+// 获取出单员名称
+const getUnderwriterName = (id) => {
+  const underwriter = underwriterList.value.find(item => item.id === id)
+  return underwriter ? underwriter.name : ''
 }
 
 // 格式化日期
@@ -509,6 +654,16 @@ const statusClass = (status) => {
     'success': 'bg-green-100 text-green-800',
     'pending': 'bg-yellow-100 text-yellow-800',
     'failed': 'bg-red-100 text-red-800'
+  }
+  return statusMap[status] || 'bg-gray-100 text-gray-800'
+}
+
+// 成交状态样式
+const dealStatusClass = (status) => {
+  const statusMap = {
+    '跟进中': 'bg-blue-100 text-blue-800',
+    '已成交': 'bg-green-100 text-green-800',
+    '已失效': 'bg-red-100 text-red-800'
   }
   return statusMap[status] || 'bg-gray-100 text-gray-800'
 }

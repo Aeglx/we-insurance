@@ -724,7 +724,7 @@ const loadInsuranceCategories = async () => {
 const loadAgentList = async () => {
   try {
     const response = await agentService.getAgentList()
-    agentList.value = response.list || []
+    agentList.value = response.data || []
   } catch (error) {
       console.error('加载代理人列表失败:', error)
       toast.error('加载代理人列表失败')
@@ -746,7 +746,7 @@ const searchInsurance = async () => {
 const searchAgent = async () => {
   try {
     const response = await agentService.searchAgent(agentSearchKeyword.value)
-    agentList.value = response || []
+    agentList.value = response.data || []
   } catch (error) {
       console.error('搜索代理人失败:', error)
       toast.error('搜索代理人失败')

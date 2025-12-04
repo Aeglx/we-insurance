@@ -24,9 +24,9 @@
               class="px-3 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
             >
               <option value="">全部</option>
-              <option value="1">出单员A</option>
-              <option value="2">出单员B</option>
-              <option value="3">出单员C</option>
+              <option v-for="underwriter in underwriters" :key="underwriter.id" :value="underwriter.id">
+                {{ underwriter.name }}
+              </option>
             </select>
           </div>
           
@@ -140,6 +140,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import Chart from 'chart.js/auto'
+import underwriterService from '../services/underwriterService'
 
 // 查询参数
 const queryParams = ref({
@@ -147,6 +148,9 @@ const queryParams = ref({
   underwriterId: '',
   insuranceTypeId: ''
 })
+
+// 出单员数据
+const underwriters = ref([])
 
 // 统计数据
 const statistics = ref({
@@ -183,6 +187,16 @@ const formatCurrency = (amount) => {
   return new Intl.NumberFormat('zh-CN').format(amount)
 }
 
+// 加载出单员数据
+const loadUnderwriters = async () => {
+  try {
+    const response = await underwriterService.getUnderwriterList()
+    underwriters.value = response.data || []
+  } catch (error) {
+    console.error('加载出单员数据失败:', error)
+  }
+}
+
 // 处理查询
 const handleSearch = () => {
   // 这里可以添加查询逻辑
@@ -190,6 +204,11 @@ const handleSearch = () => {
   initInsuranceChart()
   initTimeTrendChart()
 }
+
+// 在组件挂载时加载数据
+onMounted(() => {
+  loadUnderwriters()
+})
 
 // 初始化按出单员统计图表
 const initUnderwriterChart = () => {

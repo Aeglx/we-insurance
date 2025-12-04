@@ -116,6 +116,17 @@ const insuranceService = {
     }
   },
   
+  // 获取险种分类列表（别名方法）
+  getInsuranceCategoryList: async () => {
+    try {
+      const response = await api.get('/insurance/categories')
+      return response
+    } catch (error) {
+      console.error('获取险种分类列表失败:', error)
+      throw error
+    }
+  },
+  
   // 根据分类获取险种
   getInsuranceByCategory: async (typeId) => {
     try {

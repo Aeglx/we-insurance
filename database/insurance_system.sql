@@ -1,9 +1,9 @@
 -- MySQL数据库表设计 - 保险管理系统
 
 -- 创建数据库（如果不存在）
-CREATE DATABASE IF NOT EXISTS insurance_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS we_insurance_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-USE insurance_system;
+USE we_insurance_system;
 
 -- 1. 用户表（user）
 -- 存储系统用户信息，包括管理员、代理人和核保人

@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../pages/Login.vue'
 import Dashboard from '../pages/Dashboard.vue'
 import BusinessRegister from '../pages/BusinessRegister.vue'
+import BusinessDetail from '../pages/BusinessDetail.vue'
+import BusinessEdit from '../pages/BusinessEdit.vue'
 import Statistics from '../pages/Statistics.vue'
 import DataQuery from '../pages/DataQuery.vue'
 import Management from '../pages/Management.vue'
@@ -48,6 +50,20 @@ const routes = [
     name: 'Management',
     component: Management,
     meta: { requiresAuth: true, requiresAdmin: true },
+    layout: MainLayout
+  },
+  {
+    path: '/business/detail/:id',
+    name: 'BusinessDetail',
+    component: BusinessDetail,
+    meta: { requiresAuth: true },
+    layout: MainLayout
+  },
+  {
+    path: '/business/edit/:id',
+    name: 'BusinessEdit',
+    component: BusinessEdit,
+    meta: { requiresAuth: true },
     layout: MainLayout
   }
 ]

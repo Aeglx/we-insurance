@@ -11,6 +11,7 @@ export default defineConfig({
     }
   },
   server: {
+    port: 8000, // 强制设置前端端口为8000
     proxy: {
       '/api': {
         target: 'http://localhost:3000',

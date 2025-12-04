@@ -61,6 +61,17 @@ const businessService = {
     }
   },
   
+  // 获取业务操作日志
+  getBusinessLogs: async (id) => {
+    try {
+      const response = await api.get(`/business/logs/${id}`)
+      return response
+    } catch (error) {
+      console.error('获取业务操作日志失败:', error)
+      throw error
+    }
+  },
+  
   // 添加业务记录
   addBusiness: async (data) => {
     try {
@@ -117,10 +128,10 @@ const businessService = {
   },
   
   // 导出业务列表
-  exportBusinessList: async (params = {}) => {
+  exportBusinessList: async (params = {}, format = 'excel') => {
     try {
       const response = await api.get('/business/export', {
-        params,
+        params: { ...params, format },
         responseType: 'blob'
       })
       
@@ -128,7 +139,7 @@ const businessService = {
       const url = window.URL.createObjectURL(new Blob([response]))
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `业务记录_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      link.setAttribute('download', `业务记录_${new Date().toISOString().slice(0, 10)}.${format === 'pdf' ? 'pdf' : 'xlsx'}`)
       document.body.appendChild(link)
       link.click()
       

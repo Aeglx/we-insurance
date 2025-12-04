@@ -10,37 +10,33 @@
           <el-row :gutter="24">
             <el-col :span="12">
               <el-form-item label="代理人" prop="agentId" required>
-                <div class="search-container">
-                  <el-input
-                    v-model="searchAgent"
-                    @input="handleAgentSearch"
-                    @focus="handleAgentSearch"
-                    placeholder="输入代理人姓名搜索"
-                    clearable
-                    class="search-input"
-                  >
-                    <template #append>
-                      <el-button @click="showAddAgentModal = true" type="primary" icon="Plus" circle></el-button>
-                    </template>
-                  </el-input>
-                  <el-select
-                    v-model="formData.agentId"
-                    @change="onAgentChange"
-                    placeholder="请选择代理人"
-                    class="w-full"
-                    :popper-append-to-body="false"
-                    filterable
-                    remote
-                    :remote-method="handleAgentSearch"
-                  >
-                    <el-option
-                      v-for="agent in filteredAgents"
-                      :key="agent.id"
-                      :label="agent.name"
-                      :value="agent.id"
-                    ></el-option>
-                  </el-select>
-                </div>
+                <el-autocomplete
+                  v-model="searchAgent"
+                  :fetch-suggestions="querySearchAgent"
+                  @select="onAgentSelect"
+                  @change="handleAgentChange"
+                  placeholder="输入代理人姓名搜索或新增"
+                  clearable
+                  class="w-full"
+                  value-key="name"
+                >
+                  <template #suffix>
+                    <el-button 
+                      v-if="searchAgent && !isAgentExists(searchAgent)" 
+                      @click="handleAddAgent"
+                      type="primary" 
+                      size="small"
+                    >
+                      新增
+                    </el-button>
+                  </template>
+                  <template #default="{ item }">
+                    <div class="flex justify-between">
+                      <span>{{ item.name }}</span>
+                      <span class="text-gray-400 text-sm">{{ item.department || '无部门' }}</span>
+                    </div>
+                  </template>
+                </el-autocomplete>
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -171,9 +167,9 @@
             <el-col :span="12">
               <el-form-item label="成交状态" prop="dealStatus" required>
                 <el-select v-model="formData.dealStatus" @change="handleDealStatusChange" class="w-full">
-                  <el-option label="跟进中" value="跟进中"></el-option>
-                  <el-option label="已成交" value="已成交"></el-option>
-                  <el-option label="已失效" value="已失效"></el-option>
+                  <el-option label="跟进中" value="pending"></el-option>
+                  <el-option label="已成交" value="approved"></el-option>
+                  <el-option label="已失效" value="rejected"></el-option>
                 </el-select>
               </el-form-item>
             </el-col>
@@ -235,31 +231,7 @@
       </el-form>
     </el-card>
     
-    <!-- 新增代理人模态框 -->
-    <el-dialog
-      title="新增代理人"
-      v-model="showAddAgentModal"
-      width="500px"
-      center
-    >
-      <el-form :model="newAgentForm" :rules="agentFormRules" ref="agentFormRef" label-position="right" label-width="100px">
-        <el-form-item label="姓名" prop="name" required>
-          <el-input v-model="newAgentForm.name" placeholder="请输入代理人姓名" clearable></el-input>
-        </el-form-item>
-        <el-form-item label="联系方式" prop="phone" required>
-          <el-input v-model="newAgentForm.phone" placeholder="请输入联系电话" clearable></el-input>
-        </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="newAgentForm.email" placeholder="请输入邮箱地址" clearable></el-input>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showAddAgentModal = false">取消</el-button>
-          <el-button type="primary" @click="addAgent" :loading="addingAgent">确定</el-button>
-        </span>
-      </template>
-    </el-dialog>
+
   </div>
 </template>
 
@@ -292,12 +264,19 @@ const formData = reactive({
   companyName: '',
   plateNumber: '', // 车牌号字段
   inquiryAmount: 0,
-  dealStatus: '跟进中',
+  dealStatus: 'pending', // 跟进中
   reminderTime: '',
   policyNumber: '',
   dealTime: '',
   followUpRemark: ''
 })
+
+// 成交状态映射（前端显示与后端存储的对应关系）
+const dealStatusMap = {
+  'pending': '跟进中',
+  'approved': '已成交',
+  'rejected': '已失效'
+};
 
 // 表单验证规则
 const formRules = reactive({
@@ -338,21 +317,21 @@ const formRules = reactive({
   dealStatus: [{ required: true, message: '请选择成交状态', trigger: 'change' }],
   reminderTime: [
     {
-      required: () => formData.dealStatus === '跟进中',
+      required: () => formData.dealStatus === 'pending',
       message: '请选择提醒时间',
       trigger: ['blur', 'change']
     }
   ],
   policyNumber: [
     {
-      required: () => formData.dealStatus === '已成交',
+      required: () => formData.dealStatus === 'approved',
       message: '请输入保单号',
       trigger: ['blur', 'change']
     }
   ],
   dealTime: [
     {
-      required: () => formData.dealStatus === '已成交',
+      required: () => formData.dealStatus === 'approved',
       message: '请选择成交时间',
       trigger: ['blur', 'change']
     }
@@ -361,35 +340,18 @@ const formRules = reactive({
 
 // 代理人相关数据
 const agents = ref([])
-const filteredAgents = ref([])
 const searchAgent = ref('')
 
 // 出单员数据
 const underwriters = ref([])
 
 // 险种分类数据
-  const insuranceTypes = ref([])
-  // 险种名称数据
-  const specificInsurances = ref([])
+const insuranceTypes = ref([])
+// 险种名称数据
+const specificInsurances = ref([])
 
 // 加载状态
 const loading = ref(false)
-const addingAgent = ref(false)
-
-// 新增代理人模态框
-const showAddAgentModal = ref(false)
-const newAgentForm = reactive({
-  name: '',
-  phone: '',
-  email: ''
-})
-
-// 代理人表单验证规则
-const agentFormRules = reactive({
-  name: [{ required: true, message: '请输入代理人姓名', trigger: 'blur' }],
-  phone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }, { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码格式', trigger: 'blur' }],
-  email: [{ type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }]
-})
 
 // 处理客户类型变化
 const handleClientTypeChange = () => {
@@ -429,7 +391,6 @@ const loadAgents = async () => {
     const response = await agentService.getAgentList()
     if (response.code === 200) {
       agents.value = response.data
-      filteredAgents.value = [...response.data]
     }
   } catch (error) {
     console.error('加载代理人数据失败:', error)
@@ -441,9 +402,8 @@ const loadAgents = async () => {
 const loadUnderwriters = async () => {
   try {
     const response = await underwriterService.getUnderwriterList()
-    if (response.code === 200) {
-      underwriters.value = response.data
-    }
+    // 出单员接口返回格式为 { data: [...], total: ... }
+    underwriters.value = response.data || []
   } catch (error) {
     console.error('加载出单员数据失败:', error)
     ElMessage.error('加载出单员数据失败')
@@ -463,27 +423,74 @@ const loadInsuranceCategories = async () => {
   }
 }
 
-// 代理人搜索
-const handleAgentSearch = (query) => {
+// 代理人搜索函数，用于el-autocomplete的fetch-suggestions属性
+const querySearchAgent = (query, cb) => {
   if (query) {
-    filteredAgents.value = agents.value.filter(agent => 
+    const results = agents.value.filter(agent => 
       agent.name.toLowerCase().includes(query.toLowerCase())
     )
+    cb(results)
   } else {
-    filteredAgents.value = [...agents.value]
+    cb([])
   }
 }
 
-// 代理人选择变化
-const onAgentChange = (agentId) => {
-  // 当代理人改变时，可以在这里添加额外的处理逻辑
-  if (!agentId) {
-    searchAgent.value = ''
-  } else {
-    const selectedAgent = agents.value.find(agent => agent.id === agentId)
-    if (selectedAgent) {
-      searchAgent.value = selectedAgent.name
+// 检查代理人是否已存在
+const isAgentExists = (agentName) => {
+  return agents.value.some(agent => agent.name.toLowerCase() === agentName.toLowerCase())
+}
+
+// 代理人选择事件处理
+const onAgentSelect = (item) => {
+  formData.agentId = item.id
+  searchAgent.value = item.name
+}
+
+// 输入框变化事件处理
+const handleAgentChange = (value) => {
+  if (!value) {
+    formData.agentId = ''
+  }
+}
+
+// 直接新增代理人
+const handleAddAgent = async () => {
+  try {
+    // 验证输入
+    if (!searchAgent.value.trim()) {
+      ElMessage.warning('请输入代理人姓名')
+      return
     }
+
+    // 调用后端API添加代理人
+    const response = await agentService.addAgent({
+      name: searchAgent.value.trim(),
+      phone: '',
+      status: true,
+      department: ''
+    })
+    
+    // 处理API响应
+    if (response.code === 200) {
+      ElMessage.success('代理人新增成功')
+      
+      // 更新代理人列表
+      await loadAgents()
+      
+      // 自动选中新添加的代理人
+      if (response.data && response.data.id) {
+        const newAgent = agents.value.find(agent => agent.id === response.data.id)
+        if (newAgent) {
+          formData.agentId = newAgent.id
+          searchAgent.value = newAgent.name
+        }
+      }
+    } else {
+      ElMessage.error(response.message || '代理人新增失败')
+    }
+  } catch (error) {
+    console.error('新增代理人失败:', error)
+    ElMessage.error('代理人新增失败，请稍后重试')
   }
 }
 
@@ -587,7 +594,7 @@ const loadSpecificInsurances = async (typeId) => {
 
 // 处理成交状态变化
 const handleDealStatusChange = () => {
-  if (formData.dealStatus === '跟进中') {
+  if (formData.dealStatus === 'pending') {
     // 设置默认提醒时间为当前时间+3天
     const reminderDate = new Date()
     reminderDate.setDate(reminderDate.getDate() + 3)
@@ -596,13 +603,13 @@ const handleDealStatusChange = () => {
     // 清空已成交相关字段
     formData.policyNumber = ''
     formData.dealTime = ''
-  } else if (formData.dealStatus === '已成交') {
+  } else if (formData.dealStatus === 'approved') {
     // 设置默认成交时间为当前时间
     formData.dealTime = new Date().toISOString().split('T')[0]
     
     // 清空跟进中相关字段
     formData.reminderTime = ''
-  } else if (formData.dealStatus === '已失效') {
+  } else if (formData.dealStatus === 'rejected') {
     // 清空所有时间字段
     formData.reminderTime = ''
     formData.dealTime = ''
@@ -618,7 +625,7 @@ const resetForm = () => {
   // 重置险种名称
   specificInsurances.value = []
   // 设置默认成交状态
-  formData.dealStatus = '跟进中'
+  formData.dealStatus = 'pending' // 跟进中
   // 设置默认客户类型
   formData.clientType = 'personal'
   // 设置默认提醒时间
@@ -662,54 +669,7 @@ const submitForm = async () => {
   }
 }
 
-// 新增代理人
-const addAgent = async () => {
-  try {
-    addingAgent.value = true
-    
-    // 表单验证
-    if (!agentFormRef.value) return
-    const valid = await agentFormRef.value.validate()
-    
-    if (valid) {
-      // 调用后端API添加代理人
-      const response = await agentService.addAgent(newAgentForm)
-      
-      // 处理API响应
-      if (response.code === 200) {
-        ElMessage.success('代理人新增成功')
-        
-        // 更新代理人列表
-        await loadAgents()
-        
-        // 如果添加的代理人与当前搜索的关键词匹配，自动选中该代理人
-        if (response.data && response.data.id) {
-          formData.agentId = response.data.id
-          searchAgent.value = newAgentForm.name
-        }
-        
-        // 关闭模态框并重置表单
-        showAddAgentModal.value = false
-        resetAgentForm()
-      } else {
-        ElMessage.error(response.message || '代理人新增失败')
-      }
-    }
-  } catch (error) {
-    console.error('新增代理人失败:', error)
-    ElMessage.error('代理人新增失败，请稍后重试')
-  } finally {
-    addingAgent.value = false
-  }
-}
 
-// 重置代理人表单
-const resetAgentForm = () => {
-  if (agentFormRef.value) {
-    agentFormRef.value.resetFields()
-  }
-  Object.assign(newAgentForm, { name: '', phone: '', email: '' })
-}
 
 // 初始化
 onMounted(async () => {

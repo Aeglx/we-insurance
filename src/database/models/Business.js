@@ -3,6 +3,7 @@ import { sequelize, Sequelize } from '../connection.js'
 import BaseModel from './BaseModel.js'
 import { User } from './User.js'
 import { Insurance } from './Insurance.js'
+import { InsuranceCategory } from './InsuranceCategory.js'
 
 // 定义业务记录模型
 const Business = sequelize.define('business', {
@@ -59,9 +60,38 @@ const Business = sequelize.define('business', {
   plate_number: {
     type: Sequelize.STRING
   },
-  policy_number: {
+  insurance_type_id: {
+    type: Sequelize.INTEGER,
+    references: {
+      model: 'insurance_category',
+      key: 'id'
+    }
+  },
+  specific_insurance_id: {
+    type: Sequelize.INTEGER,
+    references: {
+      model: Insurance,
+      key: 'id'
+    }
+  },
+  inquiry_amount: {
+    type: Sequelize.DECIMAL(10, 2)
+  },
+  deal_status: {
     type: Sequelize.STRING,
-    unique: true
+    defaultValue: 'pending'
+  },
+  reminder_time: {
+    type: Sequelize.DATE
+  },
+  deal_time: {
+    type: Sequelize.DATE
+  },
+  follow_up_remark: {
+    type: Sequelize.TEXT
+  },
+  policy_number: {
+    type: Sequelize.STRING
   },
   premium_amount: {
     type: Sequelize.DECIMAL(10, 2),
@@ -111,6 +141,7 @@ const Business = sequelize.define('business', {
 Business.belongsTo(User, { as: 'agent', foreignKey: 'agent_id' })
 Business.belongsTo(User, { as: 'underwriter', foreignKey: 'underwriter_id' })
 Business.belongsTo(Insurance, { as: 'insurance', foreignKey: 'insurance_id' })
+Business.belongsTo(InsuranceCategory, { as: 'category', foreignKey: 'insurance_type_id' })
 
 // 创建Business模型实例
 const BusinessModel = new BaseModel(Business)
@@ -175,6 +206,8 @@ BusinessModel.getStatistics = async (params = {}) => {
     conversionRate: totalInquiry > 0 ? (totalDeal / totalInquiry * 100).toFixed(2) : 0
   }
 }
+
+// 关联关系已在文件上方定义
 
 export {
   Business,

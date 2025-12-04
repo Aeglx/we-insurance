@@ -7,7 +7,10 @@ import mysql2 from 'mysql2/promise'
 import { sequelize, Sequelize } from './src/database/connection.js'
 import databaseService from './src/services/databaseService.js'
 import backupService from './src/services/backupService.js'
-import { User, Insurance, Business, InsuranceCategory, BusinessLevel } from './src/database/models/index.js'
+import { User, Insurance, Business, InsuranceCategory, BusinessLevel, BusinessModel } from './src/database/models/index.js'
+// 导入模块
+import XLSXModule from 'xlsx';
+const XLSX = XLSXModule.default || XLSXModule;
 
 // 加载环境变量
 dotenv.config()
@@ -90,8 +93,8 @@ const initDatabase = async () => {
 
     console.log('数据库表初始化完成！')
     
-    // 导入最新的数据库备份
-    await backupService.importDatabase()
+    // 导入最新的数据库备份（强制模式：删除现有表并重新导入）
+    await backupService.importDatabase(true)
     
     // 初始化备份服务
     await backupService.init()
@@ -518,7 +521,7 @@ app.get('/api/user/list', async (req, res) => {
       }
     })
     
-    res.json({ list: formattedList, total: formattedList.length })
+    res.json({ code: 200, message: '获取成功', data: formattedList })
   } catch (error) {
     console.error('获取用户列表失败:', error)
     res.status(500).json({ error: '获取用户列表失败' })
@@ -615,7 +618,7 @@ app.get('/api/agent/list', async (req, res) => {
       }
     })
     
-    res.json({ list: formattedList, total: formattedList.length })
+    res.json({ code: 200, message: '获取成功', data: formattedList })
   } catch (error) {
     console.error('获取代理人列表失败:', error)
     res.status(500).json({ error: '获取代理人列表失败' })
@@ -812,7 +815,7 @@ app.get('/api/agent/search', async (req, res) => {
       }
     })
     
-    res.json({ list: formattedList, total: formattedList.length })
+    res.json({ code: 200, message: '搜索成功', data: formattedList })
   } catch (error) {
     console.error('搜索代理人失败:', error)
     res.status(500).json({ error: '搜索代理人失败' })
@@ -991,11 +994,658 @@ app.delete('/api/business-level/delete/:id', async (req, res) => {
   }
 })
 
+// 业务相关API路由
+
+// 获取业务列表
+app.get('/api/business/list', async (req, res) => {
+  console.log('业务列表API被调用！')
+  console.log('请求参数:', req.query)
+  try {
+    const params = req.query
+    
+    // 构建查询条件
+    const whereClause = {}
+    
+    if (params.agentId) {
+      whereClause.agent_id = params.agentId
+    }
+    
+    if (params.underwriterId) {
+      whereClause.underwriter_id = params.underwriterId
+    }
+    
+    if (params.insuranceTypeId) {
+      whereClause.insurance_type_id = params.insuranceTypeId
+    }
+    
+    if (params.specificInsuranceId) {
+      whereClause.specific_insurance_id = params.specificInsuranceId
+    }
+    
+    if (params.dealStatus) {
+      whereClause.deal_status = params.dealStatus
+    }
+    
+    if (params.status) {
+      whereClause.status = params.status
+    }
+    
+    if (params.customerName) {
+      whereClause.customer_name = { [Sequelize.Op.like]: `%${params.customerName}%` }
+    }
+    
+    if (params.minAmount && params.maxAmount) {
+      whereClause.inquiry_amount = {
+        [Sequelize.Op.between]: [params.minAmount, params.maxAmount]
+      }
+    } else if (params.minAmount) {
+      whereClause.inquiry_amount = { [Sequelize.Op.gte]: params.minAmount }
+    } else if (params.maxAmount) {
+      whereClause.inquiry_amount = { [Sequelize.Op.lte]: params.maxAmount }
+    }
+    
+    if (params.keyword) {
+      whereClause[Sequelize.Op.or] = [
+        { policy_number: { [Sequelize.Op.like]: `%${params.keyword}%` } },
+        { customer_name: { [Sequelize.Op.like]: `%${params.keyword}%` } }
+      ]
+    }
+    
+    if (params.startDate && params.endDate) {
+      whereClause.inquiry_date = {
+        [Sequelize.Op.between]: [params.startDate, params.endDate]
+      }
+    } else if (params.startDate) {
+      whereClause.inquiry_date = { [Sequelize.Op.gte]: params.startDate }
+    } else if (params.endDate) {
+      whereClause.inquiry_date = { [Sequelize.Op.lte]: params.endDate }
+    }
+    
+    // 分页参数
+    const page = parseInt(params.page) || 1
+    const pageSize = parseInt(params.pageSize) || 10
+    const offset = (page - 1) * pageSize
+    
+    // 获取业务列表
+    const businessList = await db.Business.findAll({
+      where: whereClause,
+      limit: pageSize,
+      offset: offset,
+      order: [['inquiry_date', 'DESC']],
+      include: [
+        { model: db.User, as: 'agent', attributes: ['id', 'name', 'username'] },
+        { model: db.User, as: 'underwriter', attributes: ['id', 'name', 'username'] },
+        { model: db.Insurance, as: 'insurance', attributes: ['id', 'name', 'code', 'category_id'] }
+      ]
+    })
+    
+    // 获取总记录数
+    const total = await db.Business.count(whereClause)
+    
+    // 成交状态映射
+    const dealStatusMap = {
+      'pending': '跟进中',
+      'success': '已成交',
+      'failed': '已失效'
+    }
+
+    // 转换为前端需要的格式
+    const formattedList = businessList.map(item => {
+      const dataValues = item.dataValues || item
+      return {
+        id: dataValues.id,
+        agentId: dataValues.agent_id,
+        agentName: dataValues.agent?.name || '',
+        underwriterId: dataValues.underwriter_id,
+        underwriterName: dataValues.underwriter?.name || '',
+        insuranceId: dataValues.insurance_id,
+        specificInsuranceId: dataValues.specific_insurance_id,
+        insuranceTypeId: dataValues.insurance_type_id,
+        insuranceName: dataValues.insurance?.name || '',
+        policyNumber: dataValues.policy_number || '',
+        insuredName: dataValues.customer_name || '',
+        customerPhone: dataValues.customer_phone || '',
+        customerEmail: dataValues.customer_email || '',
+        clientType: dataValues.client_type || '',
+        amountInsured: parseFloat(dataValues.coverage_amount) || 0,
+        premium: parseFloat(dataValues.premium_amount) || 0,
+        inquiryAmount: parseFloat(dataValues.inquiry_amount) || 0,
+        registrationDate: dataValues.inquiry_date,
+        status: dataValues.status,
+        dealStatus: dealStatusMap[dataValues.deal_status] || dataValues.deal_status,
+        followUpRemark: dataValues.follow_up_remark,
+        reminderTime: dataValues.reminder_time,
+        dealTime: dataValues.deal_time,
+        remark: dataValues.remarks || '',
+        createTime: dataValues.created_at,
+        updateTime: dataValues.updated_at,
+        created_at: dataValues.created_at
+      }
+    })
+    
+    // 返回前端期望的数据结构
+    res.json({ 
+      code: 200,
+      message: '获取成功',
+      data: {
+        records: formattedList,
+        total: total,
+        page: page,
+        pageSize: pageSize,
+        pages: Math.ceil(total / pageSize)
+      }
+    })
+  } catch (error) {
+    console.error('获取业务列表失败:', error)
+    res.status(500).json({ 
+      code: 500,
+      message: '获取业务列表失败',
+      error: error.message 
+    })
+  }
+})
+
+// 添加业务记录
+app.post('/api/business/add', async (req, res) => {
+  console.log('添加业务记录API被调用！')
+  console.log('请求参数:', req.body)
+  try {
+    const data = req.body
+    
+    // 根据客户类型确定客户名称，同时兼容test-api.js的数据结构
+    let customerName = ''
+    if (data.customerName) {
+      // 如果存在customerName字段（来自test-api.js），直接使用
+      customerName = data.customerName
+    } else if (data.clientType === 'personal') {
+      customerName = data.clientName
+    } else if (data.clientType === 'company') {
+      customerName = data.companyName
+    } else if (data.clientType === 'vehicle') {
+      customerName = data.plateNumber
+    }
+    
+    // 转换前端字段名到数据库字段名，并提供默认值
+    const businessData = {
+      agent_id: data.agentId,
+      underwriter_id: data.underwriterId,
+      insurance_id: data.specificInsuranceId,
+      insurance_type_id: data.insuranceTypeId,
+      specific_insurance_id: data.specificInsuranceId,
+      customer_name: customerName,
+      customer_phone: data.customerPhone || '13800138000',
+      customer_email: data.customerEmail || '',
+      client_type: data.clientType,
+      personal_name: data.personalName || '',
+      company_name: data.companyName || '',
+      plate_number: data.plateNumber || '',
+      inquiry_amount: parseFloat(data.inquiryAmount) || 0,
+      deal_status: data.dealStatus || 'pending',
+      reminder_time: data.reminderTime ? new Date(data.reminderTime) : null,
+      policy_number: data.policyNumber || '',
+      deal_time: data.dealTime ? new Date(data.dealTime) : null,
+      follow_up_remark: data.followUpRemark || '',
+      
+      // 兼容原有字段（如果需要）
+      premium_amount: parseFloat(data.inquiryAmount) || 0,
+      coverage_amount: parseFloat(data.inquiryAmount) || 0,
+      start_date: new Date(),
+      end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      status: data.dealStatus || 'pending',
+      inquiry_date: new Date(),
+      remarks: data.followUpRemark || ''
+    }
+    
+    // 创建业务记录
+    const business = await db.Business.create(businessData)
+    
+    // 记录操作日志
+    try {
+      await db.OperationLog.create({
+        operator_id: req.body.operatorId || 1, // 默认管理员ID
+        operator_name: req.body.operatorName || '系统管理员', // 默认管理员姓名
+        operation_type: 'create',
+        operation_content: `创建了业务记录，客户名称：${customerName}`,
+        ip_address: req.ip,
+        module: 'business',
+        related_id: business.id
+      })
+    } catch (logError) {
+      console.error('记录操作日志失败:', logError)
+    }
+    
+    // 返回前端期望的数据结构
+    res.json({
+      code: 200,
+      message: '添加成功',
+      data: business
+    })
+  } catch (error) {
+    console.error('添加业务记录失败:', error)
+    res.status(500).json({
+      code: 500,
+      message: '添加业务记录失败',
+      error: error.message
+    })
+  }
+})
+
+
+
+// 获取业务操作日志
+app.get('/api/business/logs/:id', async (req, res) => {
+  console.log('获取业务操作日志API被调用！')
+  console.log('请求参数:', req.params)
+  try {
+    const { id } = req.params
+    
+    // 查询该业务的操作日志
+    const logs = await db.OperationLog.findAll({
+      where: { related_id: id },
+      order: [['operation_time', 'DESC']]
+    })
+    
+    // 格式化日志数据
+    const formattedLogs = logs.map(log => ({
+      operationTime: log.operation_time,
+      operator: log.operator_name,
+      operationType: log.operation_type,
+      operationContent: log.operation_content
+    }))
+    
+    // 返回前端期望的数据结构
+    res.json({
+      code: 200,
+      message: '获取操作日志成功',
+      data: formattedLogs
+    })
+  } catch (error) {
+    console.error('获取业务操作日志失败:', error)
+    res.status(500).json({
+      code: 500,
+      message: '获取操作日志失败',
+      error: error.message
+    })
+  }
+})
+
+// 获取业务详情
+app.get('/api/business/detail/:id', async (req, res) => {
+  console.log('获取业务详情API被调用！')
+  console.log('请求参数:', req.params)
+  try {
+    const { id } = req.params
+    
+    // 获取业务详情
+    const business = await db.Business.findOne({
+      where: { id },
+      include: [
+        { model: db.User, as: 'agent', attributes: ['id', 'name', 'username'] },
+        { model: db.User, as: 'underwriter', attributes: ['id', 'name', 'username'] },
+        { model: db.Insurance, as: 'insurance', attributes: ['id', 'name', 'code', 'category_id'] },
+        { model: db.InsuranceCategory, as: 'category', attributes: ['id', 'name'] }
+      ]
+    })
+    
+    if (!business) {
+      return res.status(404).json({ 
+        code: 404,
+        message: '业务记录不存在'
+      })
+    }
+    
+    // 成交状态映射
+    const dealStatusMap = {
+      'pending': '跟进中',
+      'success': '已成交',
+      'failed': '已失效'
+    }
+    
+    // 转换为前端需要的格式
+    const formattedData = {
+      id: business.id,
+      agentId: business.agent_id,
+      agentName: business.agent?.name || '',
+      underwriterId: business.underwriter_id,
+      underwriterName: business.underwriter?.name || '',
+      insuranceId: business.insurance_id,
+      specificInsuranceId: business.specific_insurance_id,
+      insuranceTypeId: business.insurance_type_id,
+      insuranceName: business.insurance?.name || '',
+      policyNumber: business.policy_number || '',
+      customerName: business.customer_name || '',
+      customerPhone: business.customer_phone || '',
+      customerEmail: business.customer_email || '',
+      clientType: business.client_type || '',
+      personalName: business.personal_name || '',
+      companyName: business.company_name || '',
+      plateNumber: business.plate_number || '',
+      amountInsured: parseFloat(business.coverage_amount) || 0,
+      premium: parseFloat(business.premium_amount) || 0,
+      inquiryAmount: parseFloat(business.inquiry_amount) || 0,
+      registrationDate: business.inquiry_date,
+      status: business.status,
+      dealStatus: business.deal_status,
+      dealStatusText: dealStatusMap[business.deal_status] || business.deal_status,
+      followUpRemark: business.follow_up_remark,
+      reminderTime: business.reminder_time,
+      dealTime: business.deal_time,
+      remark: business.remarks || '',
+      createTime: business.created_at,
+      updateTime: business.updated_at,
+      // 添加保险期限字段
+      insuranceStartDate: business.start_date,
+      insuranceEndDate: business.end_date
+    }
+    
+    // 返回前端期望的数据结构
+    res.json({ 
+      code: 200,
+      message: '获取成功',
+      data: formattedData
+    })
+  } catch (error) {
+    console.error('获取业务详情失败:', error)
+    res.status(500).json({ 
+      code: 500,
+      message: '获取业务详情失败',
+      error: error.message 
+    })
+  }
+})
+
+// 更新业务记录
+app.put('/api/business/update/:id', async (req, res) => {
+  console.log('更新业务记录API被调用！')
+  console.log('请求参数:', req.params)
+  console.log('请求体:', req.body)
+  try {
+    const { id } = req.params
+    const data = req.body
+    
+    // 检查业务记录是否存在
+    const business = await db.Business.findByPk(id)
+    
+    if (!business) {
+      return res.status(404).json({ 
+        code: 404,
+        message: '业务记录不存在'
+      })
+    }
+    
+    // 根据客户类型确定客户名称
+    let customerName = ''
+    if (data.clientType === 'personal') {
+      customerName = data.personalName
+    } else if (data.clientType === 'company') {
+      customerName = data.companyName
+    } else if (data.clientType === 'vehicle') {
+      customerName = data.plateNumber
+    }
+    
+    // 转换前端字段名到数据库字段名
+    const businessData = {
+      agent_id: data.agentId,
+      underwriter_id: data.underwriterId,
+      insurance_id: data.specificInsuranceId,
+      insurance_type_id: data.insuranceTypeId,
+      specific_insurance_id: data.specificInsuranceId,
+      customer_name: customerName,
+      customer_phone: data.customerPhone,
+      customer_email: data.customerEmail || '',
+      client_type: data.clientType,
+      personal_name: data.personalName || '',
+      company_name: data.companyName || '',
+      plate_number: data.plateNumber || '',
+      policy_number: data.policyNumber || '',
+      coverage_amount: parseFloat(data.amountInsured) || 0,
+      premium_amount: parseFloat(data.premium) || 0,
+      inquiry_amount: parseFloat(data.inquiryAmount) || 0,
+      status: data.status,
+      deal_status: data.dealStatus,
+      follow_up_remark: data.followUpRemark || '',
+      reminder_time: data.reminderTime ? new Date(data.reminderTime) : null,
+      deal_time: data.dealTime ? new Date(data.dealTime) : null,
+      remarks: data.remark || '',
+      updated_at: new Date()
+    }
+    
+    // 更新业务记录
+    await db.Business.update(businessData, { where: { id } })
+    
+    // 记录操作日志
+    try {
+      await db.OperationLog.create({
+        operator_id: req.body.operatorId || 1, // 默认管理员ID
+        operator_name: req.body.operatorName || '系统管理员', // 默认管理员姓名
+        operation_type: 'update',
+        operation_content: `更新了业务记录，客户名称：${customerName}`,
+        ip_address: req.ip,
+        module: 'business',
+        related_id: id
+      })
+    } catch (logError) {
+      console.error('记录操作日志失败:', logError)
+    }
+    
+    // 返回前端期望的数据结构
+    res.json({ 
+      code: 200,
+      message: '更新成功',
+      data: { id }
+    })
+  } catch (error) {
+    console.error('更新业务记录失败:', error)
+    res.status(500).json({ 
+      code: 500,
+      message: '更新业务记录失败',
+      error: error.message 
+    })
+  }
+})
+
+// 删除业务记录
+app.delete('/api/business/delete/:id', async (req, res) => {
+  console.log('删除业务记录API被调用！')
+  console.log('请求参数:', req.params)
+  try {
+    const { id } = req.params
+    
+    // 检查业务记录是否存在
+    const business = await db.Business.findByPk(id)
+    
+    if (!business) {
+      return res.status(404).json({ 
+        code: 404,
+        message: '业务记录不存在'
+      })
+    }
+    
+    // 保存客户名称用于日志记录
+    const customerName = business.customer_name
+    
+    // 删除业务记录
+    await db.Business.destroy({ where: { id } })
+    
+    // 记录操作日志
+    try {
+      await db.OperationLog.create({
+        operator_id: req.body.operatorId || 1, // 默认管理员ID
+        operator_name: req.body.operatorName || '系统管理员', // 默认管理员姓名
+        operation_type: 'delete',
+        operation_content: `删除了业务记录，客户名称：${customerName}`,
+        ip_address: req.ip,
+        module: 'business',
+        related_id: id
+      })
+    } catch (logError) {
+      console.error('记录操作日志失败:', logError)
+    }
+    
+    // 返回前端期望的数据结构
+    res.json({ 
+      code: 200,
+      message: '删除成功',
+      data: { id }
+    })
+  } catch (error) {
+    console.error('删除业务记录失败:', error)
+    res.status(500).json({ 
+      code: 500,
+      message: '删除业务记录失败',
+      error: error.message 
+    })
+  }
+})
+
+// 导出业务记录
+app.get('/api/business/export', async (req, res) => {
+  console.log('导出业务记录API被调用！')
+  console.log('请求参数:', req.query)
+  try {
+    const params = req.query
+    const format = params.format || 'excel'
+    
+    // 构建查询条件
+    const whereClause = {}
+    
+    if (params.agentId) {
+      whereClause.agent_id = params.agentId
+    }
+    
+    if (params.underwriterId) {
+      whereClause.underwriter_id = params.underwriterId
+    }
+    
+    if (params.insuranceTypeId) {
+      whereClause.insurance_type_id = params.insuranceTypeId
+    }
+    
+    if (params.specificInsuranceId) {
+      whereClause.specific_insurance_id = params.specificInsuranceId
+    }
+    
+    if (params.dealStatus) {
+      whereClause.deal_status = params.dealStatus
+    }
+    
+    if (params.status) {
+      whereClause.status = params.status
+    }
+    
+    if (params.customerName) {
+      whereClause.customer_name = { [Sequelize.Op.like]: `%${params.customerName}%` }
+    }
+    
+    if (params.minAmount && params.maxAmount) {
+      whereClause.inquiry_amount = {
+        [Sequelize.Op.between]: [params.minAmount, params.maxAmount]
+      }
+    } else if (params.minAmount) {
+      whereClause.inquiry_amount = { [Sequelize.Op.gte]: params.minAmount }
+    } else if (params.maxAmount) {
+      whereClause.inquiry_amount = { [Sequelize.Op.lte]: params.maxAmount }
+    }
+    
+    if (params.keyword) {
+      whereClause[Sequelize.Op.or] = [
+        { policy_number: { [Sequelize.Op.like]: `%${params.keyword}%` } },
+        { customer_name: { [Sequelize.Op.like]: `%${params.keyword}%` } }
+      ]
+    }
+    
+    if (params.startDate && params.endDate) {
+      whereClause.inquiry_date = {
+        [Sequelize.Op.between]: [params.startDate, params.endDate]
+      }
+    } else if (params.startDate) {
+      whereClause.inquiry_date = { [Sequelize.Op.gte]: params.startDate }
+    } else if (params.endDate) {
+      whereClause.inquiry_date = { [Sequelize.Op.lte]: params.endDate }
+    }
+    
+    // 获取所有符合条件的业务记录
+    const businessList = await db.Business.findAll({
+      where: whereClause,
+      order: [['inquiry_date', 'DESC']],
+      include: [
+        { model: db.User, as: 'agent', attributes: ['id', 'name', 'username'] },
+        { model: db.User, as: 'underwriter', attributes: ['id', 'name', 'username'] },
+        { model: db.Insurance, as: 'insurance', attributes: ['id', 'name', 'code', 'category_id'] },
+        { model: db.InsuranceCategory, as: 'category', attributes: ['id', 'name'] }
+      ]
+    })
+    
+    // 成交状态映射
+    const dealStatusMap = {
+      'pending': '跟进中',
+      'success': '已成交',
+      'failed': '已失效'
+    }
+
+    // 转换为导出需要的格式
+    const exportData = businessList.map(item => {
+      const dataValues = item.dataValues || item
+      return {
+        'ID': dataValues.id,
+        '代理人': dataValues.agent?.name || '',
+        '出单员': dataValues.underwriter?.name || '',
+        '险种分类': dataValues.category?.name || '',
+        '险种名称': dataValues.insurance?.name || '',
+        '客户名称': dataValues.customer_name || '',
+        '询价金额': `¥${parseFloat(dataValues.inquiry_amount).toFixed(2)}`,
+        '成交状态': dealStatusMap[dataValues.deal_status] || dataValues.deal_status,
+        '登记日期': dataValues.inquiry_date ? new Date(dataValues.inquiry_date).toLocaleDateString() : '',
+        '跟进备注': dataValues.follow_up_remark || ''
+      }
+    })
+    
+    // Excel格式导出
+    const workbook = XLSX.utils.book_new()
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    
+    // 设置列宽
+    worksheet['!cols'] = [
+      { wch: 8 },  // ID
+      { wch: 15 }, // 代理人
+      { wch: 15 }, // 出单员
+      { wch: 15 }, // 险种分类
+      { wch: 20 }, // 险种名称
+      { wch: 20 }, // 客户名称
+      { wch: 15 }, // 询价金额
+      { wch: 12 }, // 成交状态
+      { wch: 15 }, // 登记日期
+      { wch: 30 }  // 跟进备注
+    ]
+    
+    XLSX.utils.book_append_sheet(workbook, worksheet, '业务记录')
+    
+    // 生成Excel文件
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' })
+    
+    // 设置响应头
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    // 使用 encodeURIComponent 处理文件名中的中文字符
+    const excelFilename = `业务记录_${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(excelFilename)}`)
+    
+    // 返回Excel文件
+    res.send(excelBuffer)
+  } catch (error) {
+    console.error('导出业务记录失败:', error)
+    res.status(500).json({ 
+      code: 500,
+      message: '导出业务记录失败',
+      error: error.message 
+    })
+  }
+})
+
 // 启动服务器
-const PORT = process.env.API_PORT || 3000
+const PORT = 3000 // 强制设置后端端口为3000
 
 app.listen(PORT, async () => {
-  console.log(`服务器正在运行，端口: ${PORT}`)
+  console.log(`后端服务器正在运行，端口: ${PORT}`)
   
   // 初始化数据库
   await setupDatabase()

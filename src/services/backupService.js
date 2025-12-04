@@ -195,8 +195,9 @@ class BackupService {
 
   /**
    * 导入数据库数据
+   * @param {boolean} force 是否强制导入（删除现有表后导入）
    */
-  async importDatabase() {
+  async importDatabase(force = false) {
     try {
       console.log('开始导入数据库数据...')
       
@@ -221,8 +222,34 @@ class BackupService {
         multipleStatements: true
       })
       
+      if (force) {
+        console.log('强制导入模式：删除现有表并重新导入...')
+        
+        // 禁用外键检查
+        await connection.query('SET FOREIGN_KEY_CHECKS = 0')
+        
+        // 获取所有现有表
+        const [tables] = await connection.query(
+          "SELECT table_name FROM information_schema.tables WHERE table_schema = ?",
+          [databaseConfig.database]
+        )
+        
+        // 删除所有表
+        if (tables.length > 0) {
+          const tableNames = tables.map(table => table.table_name)
+          if (tableNames.length > 0) {
+            const dropTablesSql = `DROP TABLE IF EXISTS ${tableNames.join(', ')}`
+            await connection.query(dropTablesSql)
+            console.log('成功删除所有现有表')
+          }
+        }
+      }
+      
       // 执行备份SQL
       await connection.query(backupContent)
+      
+      // 重新启用外键检查
+      await connection.query('SET FOREIGN_KEY_CHECKS = 1')
       
       console.log('数据库数据导入成功！')
       
