@@ -151,9 +151,6 @@
                 <button class="text-primary hover:text-primary-dark mr-3" @click="viewDetail(business.id)">
                   <i class="fas fa-eye"></i>
                 </button>
-                <button class="text-blue-500 hover:text-blue-700 mr-3" @click="editBusiness(business.id)">
-                  <i class="fas fa-edit"></i>
-                </button>
                 <button class="text-danger hover:text-danger-dark" @click="deleteBusiness(business.id)">
                   <i class="fas fa-trash"></i>
                 </button>

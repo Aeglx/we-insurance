@@ -8,7 +8,7 @@
           <p class="text-gray-500 mt-1">查看业务记录的完整信息</p>
         </div>
         <div class="flex space-x-3">
-          <button class="btn-secondary" @click="router.push('/business/list')">
+          <button class="btn-secondary" @click="router.go(-1)">
             <i class="fas fa-arrow-left mr-2"></i>
             返回列表
           </button>
