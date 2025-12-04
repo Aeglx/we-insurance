@@ -168,6 +168,26 @@ BusinessModel.getBusinessDetailWithRelations = async (id) => {
   })
 }
 
+// 获取最近业务记录
+BusinessModel.getRecentBusiness = async (params = {}) => {
+  const { limit = 3, agentId } = params;
+  const whereClause = {};
+  
+  if (agentId) {
+    whereClause.agent_id = agentId;
+  }
+  
+  return await BusinessModel.findAll({
+    where: whereClause,
+    include: [
+      { model: User, as: 'agent', attributes: ['id', 'name', 'username'] },
+      { model: Insurance, as: 'insurance', attributes: ['id', 'name'] }
+    ],
+    order: [['inquiry_date', 'DESC']],
+    limit: limit
+  });
+}
+
 BusinessModel.getStatistics = async (params = {}) => {
   // 实现统计查询逻辑
   const { startDate, endDate, agentId, insuranceType, date, dealStatus } = params
@@ -256,7 +276,8 @@ BusinessModel.getStatistics = async (params = {}) => {
   const monthlyWhereClause = {
     inquiry_date: {
       [Sequelize.Op.between]: [startOfMonth, endOfMonth]
-    }
+    },
+    deal_status: 'success' // 只统计已成交的
   }
   
   if (agentId) {
@@ -280,7 +301,330 @@ BusinessModel.getStatistics = async (params = {}) => {
   }
 }
 
+// 业务趋势统计方法
+BusinessModel.getBusinessTrend = async (params = {}) => {
+  const { timeDimension = 'week', agentId, insuranceType } = params
+  const today = new Date()
+  let startDate, endDate, groupByExpression
+  
+  // 根据时间维度计算开始和结束日期
+  switch (timeDimension) {
+    case 'week':
+      // 计算本周的开始日期（周一）
+      const dayOfWeek = today.getDay() || 7 // 将周日转换为7
+      startDate = new Date(today)
+      startDate.setDate(today.getDate() - (dayOfWeek - 1))
+      startDate.setHours(0, 0, 0, 0)
+      
+      // 计算本周的结束日期（周日）
+      endDate = new Date(startDate)
+      endDate.setDate(startDate.getDate() + 6)
+      endDate.setHours(23, 59, 59, 999)
+      
+      // 按天分组
+      groupByExpression = Sequelize.literal("DATE_FORMAT(inquiry_date, '%Y-%m-%d')")
+      break
+      
+    case 'month':
+      // 计算本月的开始日期
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1)
+      
+      // 计算本月的结束日期
+      endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)
+      
+      // 按天分组
+      groupByExpression = Sequelize.literal("DATE_FORMAT(inquiry_date, '%Y-%m-%d')")
+      break
+      
+    case 'quarter':
+      // 计算本季度的开始日期
+      const quarter = Math.floor(today.getMonth() / 3)
+      startDate = new Date(today.getFullYear(), quarter * 3, 1)
+      
+      // 计算本季度的结束日期
+      endDate = new Date(today.getFullYear(), quarter * 3 + 3, 0, 23, 59, 59, 999)
+      
+      // 按周分组
+      groupByExpression = Sequelize.literal("CONCAT(YEAR(inquiry_date), '-', WEEK(inquiry_date))")
+      break
+      
+    default:
+      throw new Error('无效的时间维度')
+  }
+  
+  const whereClause = {
+    inquiry_date: {
+      [Sequelize.Op.between]: [startDate, endDate]
+    }
+  }
+  
+  if (agentId) {
+    whereClause.agent_id = agentId
+  }
+  
+  if (insuranceType) {
+    whereClause.insurance_type = insuranceType
+  }
+  
+  try {
+    // 统计跟进中的记录
+    const followUpData = await Business.findAll({
+      attributes: [
+        [groupByExpression, 'date'],
+        [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
+      ],
+      where: {
+        ...whereClause,
+        status: 'pending' // 跟进中状态
+      },
+      group: ['date'],
+      order: [['date', 'ASC']]
+    })
+    
+    // 统计已完成的记录
+    const completedData = await Business.findAll({
+      attributes: [
+        [groupByExpression, 'date'],
+        [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
+      ],
+      where: {
+        ...whereClause,
+        status: 'approved' // 已完成状态
+      },
+      group: ['date'],
+      order: [['date', 'ASC']]
+    })
+    
+    // 将数据转换为对象格式以便合并
+    const followUpMap = new Map(followUpData.map(item => [item.date, parseInt(item.count)]))
+    const completedMap = new Map(completedData.map(item => [item.date, parseInt(item.count)]))
+    
+    // 获取所有唯一日期
+    const allDates = new Set([...followUpMap.keys(), ...completedMap.keys()])
+    
+    // 合并数据
+    const mergedData = Array.from(allDates)
+      .sort()
+      .map(date => ({
+        date,
+        followUp: followUpMap.get(date) || 0,
+        completed: completedMap.get(date) || 0
+      }))
+    
+    return {
+      timeDimension,
+      data: mergedData
+    }
+  } catch (error) {
+    console.error('获取业务趋势数据失败:', error)
+    throw error
+  }
+}
+
 // 关联关系已在文件上方定义
+
+  // 获取险种分布数据
+  BusinessModel.getInsuranceDistribution = async (params = {}) => {
+    const { timeDimension, agentId } = params
+    const whereClause = {}
+    const today = new Date()
+    
+    // 根据时间维度设置日期范围
+    switch (timeDimension) {
+      case 'today':
+        // 今日
+        const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+        const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999)
+        whereClause.inquiry_date = {
+          [Sequelize.Op.between]: [startOfToday, endOfToday]
+        }
+        break
+      case 'month':
+        // 本月
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)
+        whereClause.inquiry_date = {
+          [Sequelize.Op.between]: [startOfMonth, endOfMonth]
+        }
+        break
+      case 'all':
+      default:
+        // 全量数据，不设置日期范围
+        break
+    }
+    
+    if (agentId) {
+      whereClause.agent_id = agentId
+    }
+    
+    try {
+      // 按保险类型分组统计数量
+      const distributionData = await Business.findAll({
+        attributes: [
+          'insurance_type',
+          [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
+        ],
+        where: whereClause,
+        group: ['insurance_type'],
+        order: [[Sequelize.fn('COUNT', Sequelize.col('id')), 'DESC']]
+      })
+      
+      // 转换数据格式
+      const formattedData = distributionData.map(item => ({
+        name: item.insurance_type,
+        value: parseInt(item.count)
+      }))
+      
+      return {
+        timeDimension,
+        data: formattedData
+      }
+    } catch (error) {
+      console.error('获取险种分布数据失败:', error)
+      throw error
+    }
+  }
+
+  // 获取成交率数据
+  BusinessModel.getDealRate = async (params = {}) => {
+    const { days = 7, agentId } = params
+    const whereClause = {}
+    
+    // 计算日期范围
+    const endDate = new Date()
+    endDate.setHours(23, 59, 59, 999)
+    const startDate = new Date(endDate.getTime() - (days - 1) * 24 * 60 * 60 * 1000)
+    startDate.setHours(0, 0, 0, 0)
+    
+    whereClause.inquiry_date = {
+      [Sequelize.Op.between]: [startDate, endDate]
+    }
+    
+    if (agentId) {
+      whereClause.agent_id = agentId
+    }
+    
+    try {
+      // 按天分组统计总记录数和成交记录数
+      const dailyData = await Business.findAll({
+        attributes: [
+          [Sequelize.literal("DATE_FORMAT(inquiry_date, '%Y-%m-%d')"), 'date'],
+          [Sequelize.fn('COUNT', Sequelize.col('id')), 'total'],
+          [Sequelize.fn('SUM', Sequelize.literal("CASE WHEN deal_status = 'success' THEN 1 ELSE 0 END")), 'dealCount']
+        ],
+        where: whereClause,
+        group: ['date'],
+        order: [['date', 'ASC']]
+      })
+      
+      // 转换数据格式并计算成交率
+      const formattedData = dailyData.map(item => ({
+        date: item.date,
+        dealRate: item.total > 0 ? parseFloat(((item.dealCount / item.total) * 100).toFixed(2)) : 0
+      }))
+      
+      return {
+        days,
+        data: formattedData
+      }
+    } catch (error) {
+      console.error('获取成交率数据失败:', error)
+      throw error
+    }
+  }
+
+  // 获取基础指标数据
+  BusinessModel.getBasicData = async (params = {}) => {
+    const { agentId } = params
+    const today = new Date()
+    
+    // 今日询价数
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999)
+    
+    const todayInquiryWhereClause = {
+      inquiry_date: {
+        [Sequelize.Op.between]: [startOfToday, endOfToday]
+      }
+    }
+    
+    if (agentId) {
+      todayInquiryWhereClause.agent_id = agentId
+    }
+    
+    const todayInquiry = await Business.count(todayInquiryWhereClause)
+    
+    // 今日成交数
+    const todayDealWhereClause = {
+      ...todayInquiryWhereClause,
+      deal_status: 'success'
+    }
+    
+    const todayDeal = await Business.count(todayDealWhereClause)
+    
+    // 本月业绩
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)
+    
+    const monthlyWhereClause = {
+      inquiry_date: {
+        [Sequelize.Op.between]: [startOfMonth, endOfMonth]
+      },
+      deal_status: 'success'
+    }
+    
+    if (agentId) {
+      monthlyWhereClause.agent_id = agentId
+    }
+    
+    const monthlyPerformance = await Business.sum('premium_amount', monthlyWhereClause) || 0
+    
+    return {
+      todayInquiry,
+      todayDeal,
+      monthlyPerformance
+    }
+  }
+
+  // 获取仪表盘基础统计数据
+  BusinessModel.getBasicStatistics = async (params = {}) => {
+    try {
+      // 调用现有的getStatistics方法获取基础数据
+      const stats = await BusinessModel.getStatistics(params);
+      return stats;
+    } catch (error) {
+      console.error('获取仪表盘基础统计数据失败:', error);
+      throw error;
+    }
+  };
+
+  // 获取仪表盘趋势数据
+  BusinessModel.getTrendData = async (timeRange = '30d', type = 'inquiry', params = {}) => {
+    try {
+      // 根据timeRange确定时间维度
+      let timeDimension;
+      if (timeRange === '7d') {
+        timeDimension = 'week';
+      } else if (timeRange === '30d' || timeRange === 'month') {
+        timeDimension = 'month';
+      } else if (timeRange === '90d' || timeRange === 'quarter') {
+        timeDimension = 'quarter';
+      } else {
+        timeDimension = 'week'; // 默认按周
+      }
+
+      // 调用现有的getBusinessTrend方法获取趋势数据
+      const trendData = await BusinessModel.getBusinessTrend({
+        ...params,
+        timeDimension: timeDimension
+      });
+
+      return trendData;
+    } catch (error) {
+      console.error('获取仪表盘趋势数据失败:', error);
+      throw error;
+    }
+  };
 
 export {
   Business,

@@ -12,6 +12,7 @@ import { User, Insurance, Business, InsuranceCategory, BusinessLevel, BusinessMo
 import XLSXModule from 'xlsx';
 const XLSX = XLSXModule.default || XLSXModule;
 import multer from 'multer';
+import fs from 'fs';
 
 // 配置文件上传
 const upload = multer({ dest: 'uploads/' });
@@ -28,37 +29,20 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 
 // 简单测试路由 - 直接在app实例上定义
-app.get('/test', (req, res) => {
+app.get('/api/test', (req, res) => {
   console.log('收到测试请求')
   res.status(200).json({ message: 'Test route works!' })
 })
 
-// 统计API路由 - 直接在app实例上定义
+// 仪表盘测试路由将在startServer函数内部通过dashboardRoutes注册
+
+// 导入仪表盘路由模块
+import dashboardRoutes from './src/routes/dashboardRoutes.js'
+
+// 统计API路由 - 将在这里重新实现
 app.get('/statistics', (req, res) => {
-  try {
-    console.log('收到统计数据请求:', req.query)
-    // 暂时返回模拟数据
-    const statistics = {
-      totalAmount: 100000,
-      totalPolicies: 50,
-      dailyTrend: [10, 15, 20, 25, 30, 35, 40],
-      monthlyTrend: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]
-    }
-    console.log('统计数据计算结果:', statistics)
-    
-    res.json({ 
-      code: 200,
-      message: '获取业务统计数据成功',
-      data: statistics 
-    })
-  } catch (error) {
-    console.error('获取业务统计数据失败:', error)
-    res.status(500).json({ 
-      code: 500,
-      message: '获取业务统计数据失败',
-      error: error.message 
-    })
-  }
+  // 统计API将在这里重新实现
+  res.status(200).json({ message: 'Statistics route placeholder' })
 })
 
 // 数据库配置
@@ -192,10 +176,10 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' })
 })
 
-// 简单测试路由
-app.get('/api/test', (req, res) => {
-  console.log('收到测试请求')
-  res.status(200).json({ message: 'Test route works!' })
+// 新的简单测试路由
+app.get('/api/new-test', (req, res) => {
+  console.log('收到新测试请求')
+  res.status(200).json({ message: 'New test route works!' })
 })
 
 
@@ -221,7 +205,7 @@ const setupDatabase = async () => {
 // 获取险种列表
 app.get('/api/insurance/list', async (req, res) => {
   try {
-    const { keyword, typeId } = req.query
+    const { keyword, typeId, page = 1, pageSize = 20 } = req.query
     const where = {}
     
     if (keyword) {
@@ -235,6 +219,14 @@ app.get('/api/insurance/list', async (req, res) => {
       where.category_id = typeId
     }
     
+    // 计算分页参数
+    const offset = (page - 1) * pageSize
+    const limit = parseInt(pageSize)
+    
+    // 查询总数
+    const total = await db.Insurance.count({ where })
+    
+    // 查询分页数据
     const insuranceList = await db.Insurance.findAll({
       where,
       order: [['created_at', 'DESC']],
@@ -244,7 +236,9 @@ app.get('/api/insurance/list', async (req, res) => {
           as: 'category',
           attributes: ['id', 'name']
         }
-      ]
+      ],
+      offset,
+      limit
     })
     
     // 转换为前端需要的格式
@@ -265,8 +259,13 @@ app.get('/api/insurance/list', async (req, res) => {
     res.json({ 
       code: 200, 
       message: '获取成功',
-      data: formattedList,
-      total: formattedList.length
+      data: {
+        list: formattedList,
+        total,
+        page: parseInt(page),
+        pageSize: limit,
+        totalPages: Math.ceil(total / limit)
+      }
     })
   } catch (error) {
     console.error('获取险种列表失败:', error)
@@ -627,7 +626,7 @@ app.get('/api/underwriter/list', async (req, res) => {
 // 获取代理人列表接口
 app.get('/api/agent/list', async (req, res) => {
   try {
-    const { keyword, status } = req.query
+    const { keyword, status, page = 1, pageSize = 20 } = req.query
     const where = {
       role: 'agent'
     }
@@ -645,9 +644,19 @@ app.get('/api/agent/list', async (req, res) => {
       where.status = status === 'true' || status === true
     }
     
+    // 计算分页参数
+    const offset = (page - 1) * pageSize
+    const limit = parseInt(pageSize)
+    
+    // 查询总数
+    const total = await db.User.count({ where })
+    
+    // 查询分页数据
     const agentList = await db.User.findAll({
       where,
-      order: [['created_at', 'DESC']]
+      order: [['created_at', 'DESC']],
+      offset,
+      limit
     })
     
     // 转换为前端需要的格式
@@ -666,10 +675,24 @@ app.get('/api/agent/list', async (req, res) => {
       }
     })
     
-    res.json({ code: 200, message: '获取成功', data: formattedList })
+    res.json({ 
+      code: 200, 
+      message: '获取成功',
+      data: {
+        list: formattedList,
+        total,
+        page: parseInt(page),
+        pageSize: limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    })
   } catch (error) {
     console.error('获取代理人列表失败:', error)
-    res.status(500).json({ error: '获取代理人列表失败' })
+    res.status(500).json({ 
+      code: 500, 
+      message: '获取代理人列表失败',
+      error: error.message 
+    })
   }
 })
 
@@ -839,8 +862,8 @@ app.post('/api/agent/batch-import', upload.single('file'), async (req, res) => {
     // 处理导入数据
     const importedAgents = [];
     for (const item of data) {
-      // 验证必填字段
-      if (!item.name || !item.phone || !item.department) {
+      // 验证必填字段（使用中文列名）
+      if (!item['姓名'] || !item['联系电话'] || !item['所属部门']) {
         continue;
       }
 
@@ -852,7 +875,7 @@ app.post('/api/agent/batch-import', upload.single('file'), async (req, res) => {
           return char.charCodeAt(0).toString(16).slice(-4)
         }).slice(0, 3).toUpperCase()
       }
-      const username = `${getPinyinFirstLetter(item.name)}${timestamp}`;
+      const username = `${getPinyinFirstLetter(item['姓名'])}${timestamp}`;
 
       // 自动生成密码：使用默认密码 'agent123'
       const password = 'agent123';
@@ -860,12 +883,12 @@ app.post('/api/agent/batch-import', upload.single('file'), async (req, res) => {
       // 创建新代理人（role为'agent'的用户）
       const newAgent = await db.User.create({
         username,
-        name: item.name,
+        name: item['姓名'],
         password,
-        phone: item.phone,
+        phone: item['联系电话'],
         role: 'agent',
-        status: item.status !== undefined ? item.status : true,
-        department: item.department
+        status: item['状态（true/false）'] !== undefined ? item['状态（true/false）'] : true,
+        department: item['所属部门']
       });
 
       importedAgents.push(newAgent);
@@ -1128,6 +1151,299 @@ app.delete('/api/business-level/delete/:id', async (req, res) => {
 })
 
 // 业务相关API路由
+
+// 获取统计概览数据
+app.get('/api/statistics/overview', async (req, res) => {
+  try {
+    const params = { ...req.query };
+    const statistics = await BusinessModel.getStatistics(params);
+    
+    // 生成增长率数据（模拟，实际项目中应从数据库查询上期数据）
+    const growthRates = {
+      inquiryGrowth: (Math.random() * 20 - 5).toFixed(1),
+      dealGrowth: (Math.random() * 20 - 5).toFixed(1),
+      conversionRateGrowth: (Math.random() * 10 - 5).toFixed(1),
+      totalAmountGrowth: (Math.random() * 25 - 5).toFixed(1)
+    };
+    
+    res.status(200).json({
+      code: 200,
+      message: '获取统计概览数据成功',
+      data: {
+        ...statistics,
+        ...growthRates
+      }
+    });
+  } catch (error) {
+    console.error('获取统计概览数据失败:', error);
+    res.status(500).json({ code: 500, message: '获取统计概览数据失败' });
+  }
+});
+
+// 获取按出单员统计数据
+app.get('/api/statistics/underwriter', async (req, res) => {
+  try {
+    // 这里可以扩展getStatistics方法或创建新方法来获取按出单员统计的数据
+    const params = { ...req.query };
+    
+    // 使用现有的getBusinessListWithRelations方法查询所有业务记录
+    const businesses = await BusinessModel.getBusinessListWithRelations(params);
+    
+    // 按出单员分组统计
+    const underwriterStats = {};
+    businesses.forEach(business => {
+      const underwriterName = business.Underwriter?.name || '未知';
+      if (!underwriterStats[underwriterName]) {
+        underwriterStats[underwriterName] = {
+          inquiryCount: 0,
+          dealCount: 0,
+          totalAmount: 0
+        };
+      }
+      underwriterStats[underwriterName].inquiryCount++;
+      if (business.deal_status === 'success') {
+        underwriterStats[underwriterName].dealCount++;
+        underwriterStats[underwriterName].totalAmount += business.premium_amount;
+      }
+    });
+    
+    // 转换为数组格式
+    const result = Object.keys(underwriterStats).map(name => ({
+      name,
+      ...underwriterStats[name]
+    }));
+    
+    res.status(200).json({ code: 200, message: '获取按出单员统计数据成功', data: result });
+  } catch (error) {
+    console.error('获取按出单员统计数据失败:', error);
+    res.status(500).json({ code: 500, message: '获取按出单员统计数据失败' });
+  }
+});
+
+// 获取按险种统计数据
+app.get('/api/statistics/insurance', async (req, res) => {
+  try {
+    const params = { ...req.query };
+    const businesses = await BusinessModel.getBusinessListWithRelations(params);
+    
+    // 按险种分组统计
+    const insuranceStats = {};
+    businesses.forEach(business => {
+      const insuranceName = business.Insurance?.name || '未知';
+      if (!insuranceStats[insuranceName]) {
+        insuranceStats[insuranceName] = {
+          inquiryCount: 0,
+          dealCount: 0,
+          totalAmount: 0
+        };
+      }
+      insuranceStats[insuranceName].inquiryCount++;
+      if (business.deal_status === 'success') {
+        insuranceStats[insuranceName].dealCount++;
+        insuranceStats[insuranceName].totalAmount += business.premium_amount;
+      }
+    });
+    
+    // 转换为数组格式
+    const result = Object.keys(insuranceStats).map(name => ({
+      name,
+      ...insuranceStats[name]
+    }));
+    
+    res.status(200).json({ code: 200, message: '获取按险种统计数据成功', data: result });
+  } catch (error) {
+    console.error('获取按险种统计数据失败:', error);
+    res.status(500).json({ code: 500, message: '获取按险种统计数据失败' });
+  }
+});
+
+// 获取时间趋势统计数据
+app.get('/api/statistics/time-trend', async (req, res) => {
+  try {
+    const { timeType, timeRange } = req.query;
+    const params = { ...req.query };
+    const businesses = await BusinessModel.getBusinessListWithRelations(params);
+    
+    // 按时间分组统计
+    const timeStats = {};
+    businesses.forEach(business => {
+      let timeKey;
+      const date = new Date(business.inquiry_date);
+      
+      // 根据时间类型生成不同的时间键
+      switch (timeType) {
+        case 'day':
+          timeKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          break;
+        case 'week':
+          const weekNumber = Math.ceil((date.getDate() + date.getDay()) / 7);
+          timeKey = `第${weekNumber}周`;
+          break;
+        case 'month':
+          timeKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          break;
+        default:
+          timeKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      }
+      
+      if (!timeStats[timeKey]) {
+        timeStats[timeKey] = {
+          inquiryCount: 0,
+          dealCount: 0
+        };
+      }
+      timeStats[timeKey].inquiryCount++;
+      if (business.deal_status === 'success') {
+        timeStats[timeKey].dealCount++;
+      }
+    });
+    
+    // 转换为数组格式并按时间排序
+    const result = Object.keys(timeStats)
+      .sort()
+      .map(timeKey => ({
+        time: timeKey,
+        ...timeStats[timeKey]
+      }));
+    
+    res.status(200).json({ code: 200, message: '获取时间趋势统计数据成功', data: result });
+  } catch (error) {
+    console.error('获取时间趋势统计数据失败:', error);
+    res.status(500).json({ code: 500, message: '获取时间趋势统计数据失败' });
+  }
+});
+
+// 获取仪表盘基础指标数据
+app.get('/api/dashboard/basic', async (req, res) => {
+  try {
+    const params = { ...req.query };
+    const statistics = await BusinessModel.getStatistics(params);
+    
+    // 生成增长率数据（模拟，实际项目中应从数据库查询上期数据）
+    const growthRates = {
+      todayInquiryGrowth: (Math.random() * 20 - 5).toFixed(1),
+      todayDealGrowth: (Math.random() * 20 - 5).toFixed(1),
+      monthlyPerformanceGrowth: (Math.random() * 25 - 5).toFixed(1)
+    };
+    
+    res.status(200).json({
+      ...statistics,
+      ...growthRates
+    });
+  } catch (error) {
+    console.error('获取仪表盘基础指标数据失败:', error);
+    res.status(500).json({ error: '获取仪表盘基础指标数据失败' });
+  }
+});
+
+// 获取仪表盘业务趋势数据
+app.get('/api/dashboard/trend', async (req, res) => {
+  try {
+    const { timeRange = 'week' } = req.query;
+    const params = { ...req.query };
+    const businesses = await BusinessModel.getBusinessListWithRelations(params);
+    
+    // 按时间分组统计
+    const timeStats = {};
+    let dateFormat;
+    let sortFunction;
+    
+    // 根据时间范围设置不同的日期格式和排序函数
+    switch (timeRange) {
+      case 'week':
+        dateFormat = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        sortFunction = (a, b) => new Date(a) - new Date(b);
+        break;
+      case 'month':
+        dateFormat = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        sortFunction = (a, b) => new Date(a) - new Date(b);
+        break;
+      case 'year':
+        dateFormat = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        sortFunction = (a, b) => {
+          const [yearA, monthA] = a.split('-').map(Number);
+          const [yearB, monthB] = b.split('-').map(Number);
+          return yearA - yearB || monthA - monthB;
+        };
+        break;
+      default:
+        dateFormat = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        sortFunction = (a, b) => new Date(a) - new Date(b);
+    }
+    
+    businesses.forEach(business => {
+      const date = new Date(business.inquiry_date);
+      const timeKey = dateFormat(date);
+      
+      if (!timeStats[timeKey]) {
+        timeStats[timeKey] = {
+          inquiryCount: 0,
+          dealCount: 0
+        };
+      }
+      timeStats[timeKey].inquiryCount++;
+      if (business.deal_status === 'success') {
+        timeStats[timeKey].dealCount++;
+      }
+    });
+    
+    // 转换为数组格式并按时间排序
+    const result = Object.keys(timeStats)
+      .sort(sortFunction)
+      .map(timeKey => ({
+        time: timeKey,
+        ...timeStats[timeKey]
+      }));
+    
+    res.status(200).json({
+      timeDimension: timeRange,
+      data: result
+    });
+  } catch (error) {
+    console.error('获取仪表盘业务趋势数据失败:', error);
+    res.status(500).json({ error: '获取仪表盘业务趋势数据失败' });
+  }
+});
+
+// 获取最近业务记录
+app.get('/api/business/recent', async (req, res) => {
+  try {
+    const params = req.query;
+    
+    // 验证agentId是否为数字
+    if (params.agentId && isNaN(Number(params.agentId))) {
+      return res.status(400).json({ code: 400, message: '无效的代理人ID' });
+    }
+    
+    // 调用模型方法获取最近业务
+    const recentBusiness = await BusinessModel.getRecentBusiness(params);
+    
+    // 格式化响应数据
+    const formattedData = recentBusiness.map(item => ({
+      id: item.id,
+      agentName: item.agent?.name || '未知代理人',
+      insuranceName: item.insurance?.name || '未知险种',
+      customerName: item.customer_name,
+      amount: item.inquiry_amount,
+      status: item.deal_status,
+      date: item.inquiry_date.toISOString().split('T')[0]
+    }));
+    
+    // 发送响应
+    return res.status(200).json({
+      code: 200,
+      message: '获取最近业务记录成功',
+      data: formattedData
+    });
+  } catch (error) {
+    console.error('获取最近业务记录失败:', error);
+    return res.status(500).json({
+      code: 500,
+      message: '获取最近业务记录失败',
+      error: error.message
+    });
+  }
+});
 
 // 获取业务列表
 app.get('/api/business/list', async (req, res) => {
@@ -1789,6 +2105,20 @@ app.post('/api/business/import', upload.single('file'), async (req, res) => {
       })
     }
     
+    // 获取当前登录用户信息（简化处理，实际项目中应验证token）
+    let currentUser = await db.User.findOne({ where: { role: 'admin' } })
+    // 如果没有找到管理员，查找第一个代理人
+    if (!currentUser) {
+      currentUser = await db.User.findOne({ where: { role: 'agent' } })
+    }
+    // 如果还是没有找到，返回错误
+    if (!currentUser) {
+      return res.status(400).json({ 
+        code: 400,
+        message: '系统中没有可用的代理人用户'
+      })
+    }
+    
     // 读取上传的Excel文件
     const workbook = XLSX.readFile(req.file.path)
     
@@ -1838,13 +2168,22 @@ app.post('/api/business/import', upload.single('file'), async (req, res) => {
       
       // 创建数据对象
       const data = {
+        agent_id: currentUser.id, // 设置当前登录用户为代理人
         policy_number: row[headers.indexOf('保单号')] || '',
         customer_name: row[headers.indexOf('客户名称')] || '',
+        customer_phone: '13800000000', // 设置默认客户电话（必填字段）
+        customer_email: '', // 设置默认客户邮箱
+        client_type: 'personal', // 设置默认客户类型为个人
         policy_holder: row[headers.indexOf('投保人')] || '',
         insured_person: row[headers.indexOf('被保险人')] || '',
         insurance_term: row[headers.indexOf('保险期限')] || '',
-        inquiry_amount: parseFloat(row[headers.indexOf('询价金额')].replace(/[\s\u00A0]/g, '').replace(/¥/g, '')) || 0,
-        deal_status: dealStatusMap[row[headers.indexOf('成交状态')]] || 'pending'
+        inquiry_amount: row[headers.indexOf('询价金额')] ? parseFloat(row[headers.indexOf('询价金额')].toString().replace(/[\s\u00A0]/g, '').replace(/¥/g, '')) || 0 : 0,
+        deal_status: dealStatusMap[row[headers.indexOf('成交状态')]] || 'pending',
+        // 设置默认的必填字段值
+        premium_amount: 0,
+        coverage_amount: 0,
+        start_date: new Date(),
+        end_date: new Date()
       }
       
       // 查询险种信息
@@ -1853,7 +2192,13 @@ app.post('/api/business/import', upload.single('file'), async (req, res) => {
         const insurance = await db.Insurance.findOne({ where: { name: insuranceName } })
         if (insurance) {
           data.insurance_id = insurance.id
+        } else {
+          // 如果找不到匹配的险种，设置一个默认值（这里使用1作为默认险种ID）
+          data.insurance_id = 1
         }
+      } else {
+        // 如果险种名称为空，设置一个默认值（这里使用1作为默认险种ID）
+        data.insurance_id = 1
       }
       
       importData.push(data)
@@ -1889,49 +2234,131 @@ app.post('/api/business/import', upload.single('file'), async (req, res) => {
 // 启动服务器
 const PORT = 3000 // 强制设置后端端口为3000
 
+// 仪表盘基础数据 API 将在startServer函数内部通过dashboardRoutes注册
+
 // 先初始化数据库，再启动服务器
 async function startServer() {
+  const PORT = 3000 // 强制设置后端端口为3000
   try {
     await setupDatabase()
     
-    // 简单测试路由
-    app.get('/api/test', (req, res) => {
-      console.log('收到测试请求')
-      res.status(200).json({ message: 'Test route works!' })
+    console.log('startServer函数已执行，setupDatabase完成')
+    console.log('BusinessModel对象:', BusinessModel)
+    console.log('BusinessModel.getBasicData方法:', BusinessModel.getBasicData)
+    
+    // 最简单的测试路由，直接在app上注册
+    app.get('/api/simple-test', (req, res) => {
+      console.log('收到简单测试请求')
+      res.status(200).json({ message: 'Simple test route works!' })
+    })
+    
+    // 注册仪表盘路由
+    const dashboardRouter = dashboardRoutes(BusinessModel);
+    app.use('/api/dashboard', dashboardRouter);
+    console.log('仪表盘路由已注册成功')
+    
+    // 直接在app上注册的仪表盘测试路由
+    app.get('/api/dashboard/app-test', (req, res) => {
+      console.log('收到app直接注册的仪表盘测试请求')
+      res.status(200).json({ message: 'Dashboard app-test route works!' })
+    })
+    
+    // 使用不同路径前缀的测试路由
+    app.get('/api/test-dashboard/test', (req, res) => {
+      console.log('收到test-dashboard测试请求')
+      res.status(200).json({ message: 'Test-dashboard route works!' })
+    })
+    
+    // 时间趋势统计 API
+    app.get('/api/statistics/time-trend', async (req, res) => {
+      try {
+        const { type = 'inquiry', timeRange = '30d', ...params } = req.query;
+        // 使用现有的getTrendData方法获取时间趋势数据
+        const timeTrendData = await BusinessModel.getTrendData(timeRange, type, params);
+        res.status(200).json({
+          code: 200,
+          message: '获取时间趋势统计数据成功',
+          data: timeTrendData
+        });
+      } catch (error) {
+        console.error('获取时间趋势统计数据失败:', error);
+        res.status(500).json({
+          code: 500,
+          message: '获取时间趋势统计数据失败',
+          error: error.message
+        });
+      }
     })
     
     // 获取业务统计数据
-    app.get('/api/business/statistics', (req, res) => {
+    app.get('/api/business/statistics', async (req, res) => {
       try {
-        console.log('收到统计数据请求:', req.query)
-        // 返回前端期望的数据结构
-        const statistics = {
-          todayInquiryCount: 12,
-          todayDealCount: 5,
-          monthlyPerformance: 250000,
-          todayInquiryGrowth: 12,
-          todayDealGrowth: 8,
-          monthlyPerformanceGrowth: -3,
-          dailyTrend: [10, 15, 20, 25, 30, 35, 40],
-          monthlyTrend: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]
-        }
-        console.log('统计数据计算结果:', statistics)
+        console.log('收到统计数据请求:', req.query);
+        
+        // 从数据库模型获取统计数据
+        const statistics = await BusinessModel.getStatistics(req.query);
+        console.log('从数据库获取的统计数据:', statistics);
+        
+        // 构建响应数据，包括模拟的环比增长率
+        const responseData = {
+          ...statistics,
+          todayDealGrowth: 8, // 暂时使用模拟数据
+          monthlyPerformanceGrowth: -3 // 暂时使用模拟数据
+        };
+        
+        console.log('返回给前端的统计数据:', responseData);
         
         res.json({ 
           code: 200,
           message: '获取业务统计数据成功',
-          data: statistics 
-        })
+          data: responseData 
+        });
       } catch (error) {
-        console.error('获取业务统计数据失败:', error)
+        console.error('获取业务统计数据失败:', error);
         res.status(500).json({ 
           code: 500,
           message: '获取业务统计数据失败',
           error: error.message 
-        })
+        });
       }
     })
     
+    // 获取业务趋势数据
+    app.get('/api/business/trend', async (req, res) => {
+      try {
+        const { timeDimension = 'week', agentId, insuranceType } = req.query;
+        console.log('收到业务趋势数据请求:', req.query);
+        
+        // 从数据库模型获取业务趋势数据
+        const trendData = await BusinessModel.getBusinessTrend({
+          timeDimension,
+          agentId,
+          insuranceType
+        });
+        
+        console.log('返回给前端的业务趋势数据:', trendData);
+        
+        res.json({ 
+          code: 200,
+          message: '获取业务趋势数据成功',
+          data: trendData
+        });
+      } catch (error) {
+        console.error('获取业务趋势数据失败:', error);
+        res.status(500).json({ 
+          code: 500,
+          message: '获取业务趋势数据失败',
+          error: error.message 
+        });
+      }
+    })
+    
+    // 仪表盘基础数据 API - 将在这里重新实现
+    app.get('/api/dashboard/basic', (req, res) => {
+      res.status(200).json({ message: 'Dashboard basic API placeholder' })
+    })
+    
+    // 启动服务器监听
     app.listen(PORT, () => {
       console.log(`后端服务器正在运行，端口: ${PORT}`)
     })

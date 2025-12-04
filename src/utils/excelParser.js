@@ -1,65 +1,54 @@
 // Excel解析工具
 import * as XLSX from 'xlsx'
+import { readFileSync } from 'fs'
 
 /**
  * 解析Excel文件
- * @param {File} file - Excel文件对象
+ * @param {string} filePath - Excel文件路径
  * @param {Object} options - 解析选项
- * @returns {Promise<Array>} 解析后的数据数组
+ * @returns {Array} 解析后的数据数组
  */
-export const parseExcelFile = async (file, options = {}) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
+export const parseExcelFile = (filePath, options = {}) => {
+  try {
+    // 读取文件
+    const data = readFileSync(filePath)
+    const workbook = XLSX.read(data, { type: 'buffer' })
     
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result)
-        const workbook = XLSX.read(data, { type: 'array' })
-        
-        // 默认获取第一个工作表
-        const sheetName = options.sheetName || workbook.SheetNames[0]
-        const worksheet = workbook.Sheets[sheetName]
-        
-        // 解析数据
-        const parsedData = XLSX.utils.sheet_to_json(worksheet, {
-          header: 1, // 先获取标题行
-          raw: false, // 使用格式化后的数据
-          dateNF: 'yyyy-mm-dd' // 日期格式
-        })
-        
-        // 如果没有数据，返回空数组
-        if (parsedData.length === 0) {
-          resolve([])
-          return
-        }
-        
-        // 获取标题行和数据行
-        const headers = parsedData[0]
-        const dataRows = parsedData.slice(1)
-        
-        // 转换为对象数组
-        const result = dataRows.map(row => {
-          const obj = {}
-          headers.forEach((header, index) => {
-            // 去除标题中的空格
-            const key = header?.trim() || `column_${index}`
-            obj[key] = row[index]
-          })
-          return obj
-        })
-        
-        resolve(result)
-      } catch (error) {
-        reject(new Error(`解析Excel文件失败: ${error.message}`))
-      }
+    // 默认获取第一个工作表
+    const sheetName = options.sheetName || workbook.SheetNames[0]
+    const worksheet = workbook.Sheets[sheetName]
+    
+    // 解析数据
+    const parsedData = XLSX.utils.sheet_to_json(worksheet, {
+      header: 1, // 先获取标题行
+      raw: false, // 使用格式化后的数据
+      dateNF: 'yyyy-mm-dd' // 日期格式
+    })
+    
+    // 如果没有数据，返回空数组
+    if (parsedData.length === 0) {
+      return []
     }
     
-    reader.onerror = () => {
-      reject(new Error('读取文件失败'))
-    }
+    // 获取标题行和数据行
+    const headers = parsedData[0]
+    const dataRows = parsedData.slice(1)
     
-    reader.readAsArrayBuffer(file)
-  })
+    // 转换为对象数组
+    const result = dataRows.map(row => {
+      const obj = {}
+      headers.forEach((header, index) => {
+        // 去除标题中的空格
+        const key = header?.trim() || `column_${index}`
+        obj[key] = row[index]
+      })
+      return obj
+    })
+    
+    return result
+  } catch (error) {
+    throw new Error(`解析Excel文件失败: ${error.message}`)
+  }
 }
 
 /**

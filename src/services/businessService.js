@@ -200,6 +200,116 @@ const businessService = {
       console.error('导入业务列表失败:', error)
       throw error
     }
+  },
+  
+  // 获取业务趋势数据
+  getBusinessTrend: async (params = {}) => {
+    try {
+      const response = await api.get('/business/trend', { params })
+      return response
+    } catch (error) {
+      console.error('获取业务趋势数据失败:', error)
+      throw error
+    }
+  },
+  
+  // 获取仪表盘基础指标数据
+  getDashboardBasic: async (params = {}) => {
+    try {
+      const response = await api.get('/dashboard/basic', { params })
+      return response
+    } catch (error) {
+      console.error('获取仪表盘基础指标数据失败:', error)
+      throw error
+    }
+  },
+  
+  // 获取仪表盘业务趋势数据
+  getDashboardTrend: async (params = {}) => {
+    try {
+      const response = await api.get('/dashboard/trend', { params })
+      return response
+    } catch (error) {
+      console.error('获取仪表盘业务趋势数据失败:', error)
+      throw error
+    }
+  },
+  
+  // 获取仪表盘险种分布数据
+  getDashboardInsurance: async (params = {}) => {
+    try {
+      const response = await api.get('/dashboard/insurance', { params })
+      return response
+    } catch (error) {
+      console.error('获取仪表盘险种分布数据失败:', error)
+      throw error
+    }
+  },
+  
+  // 获取仪表盘成交率数据
+  getDashboardDealRate: async (params = {}) => {
+    try {
+      const response = await api.get('/dashboard/deal-rate', { params })
+      return response
+    } catch (error) {
+      console.error('获取仪表盘成交率数据失败:', error)
+      throw error
+    }
+  },
+  
+  // 获取最近业务记录
+  getRecentBusiness: async (params = {}) => {
+    try {
+      const response = await api.get('/business/recent', { params })
+      return response
+    } catch (error) {
+      console.error('获取最近业务记录失败:', error)
+      throw error
+    }
+  },
+  
+  // 获取统计概览数据
+  getStatisticsOverview: async (params = {}) => {
+    try {
+      const response = await api.get('/statistics/overview', { params })
+      return response
+    } catch (error) {
+      console.error('获取统计概览数据失败:', error)
+      throw error
+    }
+  },
+  
+  // 获取按出单员统计数据
+  getUnderwriterStatistics: async (params = {}) => {
+    try {
+      const response = await api.get('/statistics/underwriter', { params })
+      return response
+    } catch (error) {
+      console.error('获取按出单员统计数据失败:', error)
+      throw error
+    }
+  },
+  
+  // 获取按险种统计数据
+  getInsuranceStatistics: async (params = {}) => {
+    try {
+      const response = await api.get('/statistics/insurance', { params })
+      return response
+    } catch (error) {
+      console.error('获取按险种统计数据失败:', error)
+      throw error
+    }
+  },
+  
+  // 获取时间趋势统计数据
+  getTimeTrendStatistics: async (params = {}) => {
+    try {
+      const response = await api.get('/statistics/time-trend', { params })
+      return response
+    } catch (error) {
+      console.error('获取时间趋势统计数据失败:', error)
+      throw error
+    }
   }
 }
 
