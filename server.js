@@ -823,6 +823,91 @@ app.delete('/api/agent/batch-delete', async (req, res) => {
   }
 })
 
+// 批量导入代理人接口
+app.post('/api/agent/batch-import', upload.single('file'), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ code: 400, message: '请上传文件' });
+    }
+
+    // 读取Excel文件
+    const workbook = XLSX.readFile(file.path);
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(worksheet);
+
+    // 处理导入数据
+    const importedAgents = [];
+    for (const item of data) {
+      // 验证必填字段
+      if (!item.name || !item.phone || !item.department) {
+        continue;
+      }
+
+      // 自动生成用户名：使用姓名的拼音首字母 + 时间戳后6位
+      const timestamp = Date.now().toString().slice(-6);
+      // 简单的拼音首字母生成（仅支持中文）
+      const getPinyinFirstLetter = (str) => {
+        return str.replace(/[\u4e00-\u9fa5]/g, function (char) {
+          return char.charCodeAt(0).toString(16).slice(-4)
+        }).slice(0, 3).toUpperCase()
+      }
+      const username = `${getPinyinFirstLetter(item.name)}${timestamp}`;
+
+      // 自动生成密码：使用默认密码 'agent123'
+      const password = 'agent123';
+
+      // 创建新代理人（role为'agent'的用户）
+      const newAgent = await db.User.create({
+        username,
+        name: item.name,
+        password,
+        phone: item.phone,
+        role: 'agent',
+        status: item.status !== undefined ? item.status : true,
+        department: item.department
+      });
+
+      importedAgents.push(newAgent);
+    }
+
+    // 删除临时文件
+    fs.unlinkSync(file.path);
+
+    res.json({ code: 200, message: `成功导入${importedAgents.length}条数据`, data: { count: importedAgents.length } });
+  } catch (error) {
+    console.error('批量导入代理人失败:', error);
+    res.status(500).json({ error: '批量导入代理人失败' });
+  }
+});
+
+// 下载代理人导入模板接口
+app.get('/api/agent/download-template', async (req, res) => {
+  try {
+    // 创建Excel工作簿
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.aoa_to_sheet([
+      ['姓名', '联系电话', '所属部门', '状态（true/false）'],
+      ['示例姓名', '13800138000', '直客', 'true'],
+      ['张三', '13900139000', '渠道', 'true'],
+      ['李四', '13700137000', '合作', 'false']
+    ]);
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, '代理人模板');
+
+    // 设置响应头
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=agent_import_template.xlsx');
+
+    // 写入响应
+    const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+    res.send(wbout);
+  } catch (error) {
+    console.error('下载模板失败:', error);
+    res.status(500).json({ error: '下载模板失败' });
+  }
+});
+
 // 搜索代理人接口
 app.get('/api/agent/search', async (req, res) => {
   try {

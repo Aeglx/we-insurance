@@ -44,7 +44,9 @@ export const API_PATHS = {
     UPDATE: '/agent/update/',
     DELETE: '/agent/delete/',
     BATCH_DELETE: '/agent/batch-delete',
-    SEARCH: '/agent/search'
+    SEARCH: '/agent/search',
+    BATCH_IMPORT: '/agent/batch-import',
+    DOWNLOAD_TEMPLATE: '/agent/download-template'
   },
   
   // 险种相关

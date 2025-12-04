@@ -160,6 +160,45 @@
       
       <!-- 业务员管理 -->
       <div v-if="activeTab === 'agent'">
+        <!-- 搜索和添加区域 -->
+        <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+              <input 
+                type="text" 
+                v-model="agentSearchKeyword" 
+                class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                placeholder="搜索业务员名称或电话"
+              >
+              <button 
+                @click="searchAgent" 
+                class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              >
+                <i class="fas fa-search mr-1"></i>搜索
+              </button>
+            </div>
+            <div class="flex space-x-3">
+              <button 
+                @click="downloadTemplate" 
+                class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              >
+                <i class="fas fa-download mr-1"></i>下载模板
+              </button>
+              <button 
+                @click="openImportModal" 
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                <i class="fas fa-upload mr-1"></i>批量导入
+              </button>
+              <button 
+                @click="addItem" 
+                class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              >
+                <i class="fas fa-plus mr-1"></i>添加业务员
+              </button>
+            </div>
+          </div>
+        </div>
         <!-- 业务员列表 -->
         <div class="bg-white rounded-lg shadow-md">
           <div class="overflow-x-auto">
@@ -625,6 +664,42 @@
       </div>
     </div>
   </div>
+
+  <!-- 批量导入模态框 -->
+  <div v-if="isImportModalVisible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+      <div class="p-6">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">批量导入业务员</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">选择文件</label>
+            <input 
+              type="file" 
+              accept=".xlsx,.xls" 
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              @change="handleFileChange"
+            >
+            <p class="text-sm text-gray-500 mt-1">支持 .xlsx 和 .xls 格式文件</p>
+            <p class="text-sm text-gray-500 mt-1">请先下载模板，按照模板格式填写数据后再导入</p>
+          </div>
+        </div>
+        <div class="flex justify-end space-x-3 mt-6">
+          <button 
+            @click="closeImportModal" 
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
+          >
+            取消
+          </button>
+          <button 
+            @click="batchImport" 
+            class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+          >
+            导入
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -1079,6 +1154,63 @@ const editItem = (item) => {
   // 打开模态框
   isModalVisible.value = true
 }
+
+// 批量导入相关
+const isImportModalVisible = ref(false);
+const selectedFile = ref(null);
+
+// 打开导入模态框
+const openImportModal = () => {
+  isImportModalVisible.value = true;
+  selectedFile.value = null;
+};
+
+// 关闭导入模态框
+const closeImportModal = () => {
+  isImportModalVisible.value = false;
+};
+
+// 选择文件
+const handleFileChange = (event) => {
+  selectedFile.value = event.target.files[0];
+};
+
+// 批量导入
+const batchImport = async () => {
+  if (!selectedFile.value) {
+    toast.warning('请选择要导入的文件');
+    return;
+  }
+
+  try {
+    const result = await agentService.batchImportAgents(selectedFile.value);
+    toast.success(result.message || `成功导入${result.data.count}条数据`);
+    await loadAgentList();
+    closeImportModal();
+  } catch (error) {
+    console.error('批量导入失败:', error);
+    toast.error('批量导入失败');
+  }
+};
+
+// 下载模板
+const downloadTemplate = async () => {
+  try {
+    const blob = await agentService.downloadAgentTemplate();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'agent_import_template.xlsx');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    toast.success('模板下载成功');
+  } catch (error) {
+    console.error('下载模板失败:', error);
+    toast.error('下载模板失败');
+  }
+};
 
 // 删除项目
 const deleteItem = async (type, id) => {

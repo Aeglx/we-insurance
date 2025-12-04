@@ -114,6 +114,37 @@ const agentService = {
       console.error('搜索代理人失败:', error)
       throw error
     }
+  },
+  
+  // 批量导入代理人
+  batchImportAgents: async (file) => {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      const response = await api.post('/agent/batch-import', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      return response
+    } catch (error) {
+      console.error('批量导入代理人失败:', error)
+      throw error
+    }
+  },
+  
+  // 下载代理人导入模板
+  downloadAgentTemplate: async () => {
+    try {
+      const response = await api.get('/agent/download-template', {
+        responseType: 'blob'
+      })
+      return response
+    } catch (error) {
+      console.error('下载模板失败:', error)
+      throw error
+    }
   }
 }
 
