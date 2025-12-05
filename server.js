@@ -23,101 +23,13 @@ app.use(cors())
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 
-// 添加日志中间件，记录所有请求
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`)
-  next()
-})
-
 // 简单测试路由 - 直接在app实例上定义
 app.get('/test', (req, res) => {
   console.log('收到测试请求')
   res.status(200).json({ message: 'Test route works!' })
 })
 
-// 确保批量导入路由被注册在最前面，不受其他路由影响
-console.log('在文件最前面注册批量导入路由')
-app.post('/api/agent/batch-import', async (req, res) => {
-  try {
-    console.log('收到批量导入请求:', req.body);
-    
-    const { agents } = req.body;
-    
-    if (!agents || !Array.isArray(agents) || agents.length === 0) {
-      return res.status(400).json({ 
-        code: 400, 
-        message: '导入数据不能为空',
-        success: false 
-      });
-    }
-    
-    let successCount = 0;
-    let errorCount = 0;
-    const errors = [];
-    
-    // 批量导入代理人
-    for (const agent of agents) {
-      try {
-        // 自动生成用户名：使用姓名的拼音首字母 + 时间戳后6位
-        const timestamp = Date.now().toString().slice(-6);
-        const getPinyinFirstLetter = (str) => {
-          return str.replace(/[\u4e00-\u9fa5]/g, function (char) {
-            return char.charCodeAt(0).toString(16).slice(-4);
-          }).slice(0, 3).toUpperCase();
-        };
-        const username = `${getPinyinFirstLetter(agent.name)}${timestamp}`;
-        
-        // 自动生成密码：使用默认密码 'agent123'
-        const password = 'agent123';
-        
-        // 创建新代理人
-        await User.create({
-          username,
-          name: agent.name,
-          password,
-          phone: agent.phone || '',
-          email: agent.email || '',
-          role: 'agent',
-          status: agent.status !== undefined ? agent.status : true,
-          department: agent.department || ''
-        });
-        
-        successCount++;
-      } catch (error) {
-        errorCount++;
-        errors.push({
-          name: agent.name,
-          error: error.message
-        });
-        console.error(`导入代理人 ${agent.name} 失败:`, error);
-      }
-    }
-    
-    res.json({
-      code: 200,
-      success: true,
-      message: `批量导入完成，成功 ${successCount} 条，失败 ${errorCount} 条`,
-      data: {
-        successCount,
-        errorCount,
-        errors
-      }
-    });
-  } catch (error) {
-    console.error('批量导入代理人失败:', error);
-    res.status(500).json({ 
-      code: 500,
-      success: false,
-      message: '批量导入代理人失败',
-      error: error.message 
-    });
-  }
-})
-
-// 旧的统计API路由已被移除，建议使用/api/business/statistics接口
-// app.get('/statistics', (req, res) => {
-//   ...
-// })
+// 统计API已清理
 
 // 数据库配置
 const dbConfig = {
@@ -189,9 +101,8 @@ const initDatabase = async () => {
 
     console.log('数据库表初始化完成！')
     
-    // 导入最新的数据库备份（非强制模式：只在表不存在时导入）
-    // await backupService.importDatabase(true) - 注释掉强制导入，避免每次重启都删除数据
-    await backupService.importDatabase(false)
+    // 导入最新的数据库备份（强制模式：每次启动都导入最新备份）
+    await backupService.importDatabase(true)
     
     // 初始化备份服务
     await backupService.init()
@@ -276,9 +187,10 @@ const setupDatabase = async () => {
 }
 
 // 险种API接口
+// 获取险种列表
 app.get('/api/insurance/list', async (req, res) => {
   try {
-    const { keyword, typeId, page = 1, pageSize = 20 } = req.query
+    const { keyword, typeId } = req.query
     const where = {}
     
     if (keyword) {
@@ -292,20 +204,9 @@ app.get('/api/insurance/list', async (req, res) => {
       where.category_id = typeId
     }
     
-    // 计算分页参数
-    const currentPage = parseInt(page)
-    const limit = parseInt(pageSize)
-    const offset = (currentPage - 1) * limit
-    
-    // 获取总数
-    const totalCount = await db.Insurance.count({ where })
-    
-    // 获取分页数据
     const insuranceList = await db.Insurance.findAll({
       where,
       order: [['created_at', 'DESC']],
-      limit,
-      offset,
       include: [
         {
           model: db.InsuranceCategory,
@@ -334,12 +235,7 @@ app.get('/api/insurance/list', async (req, res) => {
       code: 200, 
       message: '获取成功',
       data: formattedList,
-      pagination: {
-        currentPage,
-        pageSize: limit,
-        totalCount,
-        totalPages: Math.ceil(totalCount / limit)
-      }
+      total: formattedList.length
     })
   } catch (error) {
     console.error('获取险种列表失败:', error)
@@ -700,7 +596,7 @@ app.get('/api/underwriter/list', async (req, res) => {
 // 获取代理人列表接口
 app.get('/api/agent/list', async (req, res) => {
   try {
-    const { keyword, status, page = 1, pageSize = 20 } = req.query
+    const { keyword, status } = req.query
     const where = {
       role: 'agent'
     }
@@ -718,20 +614,9 @@ app.get('/api/agent/list', async (req, res) => {
       where.status = status === 'true' || status === true
     }
     
-    // 计算分页参数
-    const currentPage = parseInt(page)
-    const limit = parseInt(pageSize)
-    const offset = (currentPage - 1) * limit
-    
-    // 获取总数
-    const totalCount = await db.User.count({ where })
-    
-    // 获取分页数据
     const agentList = await db.User.findAll({
       where,
-      order: [['created_at', 'DESC']],
-      limit,
-      offset
+      order: [['created_at', 'DESC']]
     })
     
     // 转换为前端需要的格式
@@ -750,17 +635,7 @@ app.get('/api/agent/list', async (req, res) => {
       }
     })
     
-    res.json({ 
-      code: 200, 
-      message: '获取成功', 
-      data: formattedList,
-      pagination: {
-        currentPage,
-        pageSize: limit,
-        totalCount,
-        totalPages: Math.ceil(totalCount / limit)
-      }
-    })
+    res.json({ code: 200, message: '获取成功', data: formattedList })
   } catch (error) {
     console.error('获取代理人列表失败:', error)
     res.status(500).json({ error: '获取代理人列表失败' })
@@ -1808,9 +1683,7 @@ const PORT = 3000 // 强制设置后端端口为3000
 // 先初始化数据库，再启动服务器
 async function startServer() {
   try {
-    console.log('startServer函数开始执行')
     await setupDatabase()
-    console.log('数据库初始化完成，开始注册路由')
     
     // 简单测试路由
     app.get('/api/test', (req, res) => {
@@ -1818,140 +1691,18 @@ async function startServer() {
       res.status(200).json({ message: 'Test route works!' })
     })
     
-    // 调试路由：查看所有已注册的路由
-    app.get('/api/routes', (req, res) => {
-      const routes = [];
-      // 检查app._router.stack
-      if (app._router && app._router.stack) {
-        app._router.stack.forEach(middleware => {
-          if (middleware.route) {
-            // 路由中间件
-            routes.push({
-              path: middleware.route.path,
-              methods: Object.keys(middleware.route.methods)
-            });
-          } else if (middleware.name === 'router') {
-            // 子路由
-            middleware.handle.stack.forEach(handler => {
-              if (handler.route) {
-                routes.push({
-                  path: handler.route.path,
-                  methods: Object.keys(handler.route.methods)
-                });
-              }
-            });
-          }
-        });
-      }
-      res.json({ routes });
-    })
+
     
-    // 批量导入路由已在文件最前面注册
-    
-    // 获取业务统计数据
-    app.get('/api/business/statistics', (req, res) => {
-      try {
-        console.log('收到统计数据请求:', req.query)
-        
-        // 根据请求参数获取不同的统计数据
-        const { type = 'dashboard' } = req.query
-        
-        // 返回完整的统计数据，包括仪表盘和统计分析页面所需的所有数据
-        const statistics = {
-          // 仪表盘数据
-          todayInquiryCount: 12,
-          todayDealCount: 5,
-          monthlyPerformance: 250000,
-          todayInquiryGrowth: 12,
-          todayDealGrowth: 8,
-          monthlyPerformanceGrowth: -3,
-          dailyTrend: [10, 15, 20, 25, 30, 35, 40],
-          monthlyTrend: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200],
-          
-          // 统计分析页面数据
-          inquiryCount: 156,
-          dealCount: 68,
-          conversionRate: 43.6,
-          totalAmount: 458200,
-          inquiryGrowth: 12.5,
-          dealGrowth: 8.3,
-          conversionRateGrowth: -2.1,
-          totalAmountGrowth: 15.2,
-          
-          // 按出单员统计
-          underwriterStatistics: [
-            { name: '出单员A', inquiryCount: 65, dealCount: 28 },
-            { name: '出单员B', inquiryCount: 58, dealCount: 35 },
-            { name: '出单员C', inquiryCount: 80, dealCount: 42 }
-          ],
-          
-          // 按险种统计
-          insuranceStatistics: [
-            { name: '个人意外险', inquiryCount: 45, dealCount: 20 },
-            { name: '团体意外险', inquiryCount: 40, dealCount: 20 },
-            { name: '学平险', inquiryCount: 28, dealCount: 18 },
-            { name: '建工险', inquiryCount: 22, dealCount: 10 },
-            { name: '燃气险', inquiryCount: 16, dealCount: 8 },
-            { name: '雇主险', inquiryCount: 12, dealCount: 8 }
-          ],
-          
-          // 时间趋势数据
-          timeTrendData: {
-            labels: ['1日', '2日', '3日', '4日', '5日', '6日', '7日', '8日', '9日', '10日', '11日', '12日', '13日', '14日', '15日', '16日', '17日', '18日', '19日', '20日', '21日', '22日', '23日', '24日', '25日', '26日', '27日', '28日', '29日', '30日'],
-            inquiryData: Array(30).fill().map(() => Math.floor(Math.random() * 10) + 15),
-            dealData: Array(30).fill().map(() => Math.floor(Math.random() * 5) + 5),
-            conversionData: Array(30).fill().map(() => Math.floor(Math.random() * 10) + 35)
-          }
-        }
-        
-        console.log('统计数据计算结果:', statistics)
-        
-        res.json({ 
-          code: 200,
-          message: '获取业务统计数据成功',
-          data: statistics 
-        })
-      } catch (error) {
-        console.error('获取业务统计数据失败:', error)
-        res.status(500).json({ 
-          code: 500,
-          message: '获取业务统计数据失败',
-          error: error.message 
-        })
-      }
-    })
-    
-    console.log('所有路由注册完成，开始监听端口')
     app.listen(PORT, () => {
       console.log(`后端服务器正在运行，端口: ${PORT}`)
     })
-    
-    // 批量导入路由已在文件最前面注册
   } catch (error) {
     console.error('服务器启动失败:', error)
     process.exit(1)
   }
 }
 
+
+
 // 启动服务器
 startServer()
-
-// 直接在app上注册一个测试路由
-app.get('/api/direct-test', (req, res) => {
-  console.log('收到直接测试请求')
-  res.status(200).json({ message: 'Direct test route works!' })
-})
-
-// 直接在app上注册批量导入路由
-app.post('/api/agent/direct-batch-import', async (req, res) => {
-  try {
-    console.log('收到直接批量导入请求:', req.body);
-    res.json({
-      success: true,
-      message: '直接批量导入接口测试成功'
-    });
-  } catch (error) {
-    console.error('直接批量导入代理人失败:', error);
-    res.status(500).json({ error: '直接批量导入代理人失败' });
-  }
-})

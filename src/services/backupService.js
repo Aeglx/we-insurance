@@ -16,8 +16,8 @@ const BACKUP_CONFIG = {
   BACKUP_DIR: path.join(__dirname, '../../database'),
   // 备份文件名
   BACKUP_FILE: 'backup.sql',
-  // 备份间隔（毫秒）- 1小时
-  BACKUP_INTERVAL: 60 * 60 * 1000,
+  // 备份间隔（毫秒）- 30分钟
+  BACKUP_INTERVAL: 30 * 60 * 1000,
   // 是否启用自动备份
   AUTO_BACKUP: true
 }

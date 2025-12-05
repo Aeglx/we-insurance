@@ -116,27 +116,7 @@ const businessService = {
     }
   },
   
-  // 获取业务统计数据
-  getBusinessStatistics: async (params = {}) => {
-    try {
-      console.log('API基础URL:', API_BASE_URL)
-      console.log('发送API请求到:', API_PATHS.BUSINESS.STATISTICS)
-      console.log('请求参数:', params)
-      const response = await api.get(API_PATHS.BUSINESS.STATISTICS, { params })
-      console.log('API响应:', response)
-      return response
-    } catch (error) {
-      console.error('获取业务统计数据失败:', error)
-      if (error.response) {
-        console.error('API错误响应:', error.response)
-      } else if (error.request) {
-        console.error('API请求未收到响应:', error.request)
-      } else {
-        console.error('API请求配置错误:', error.message)
-      }
-      throw error
-    }
-  },
+
   
   // 导出业务列表
   exportBusinessList: async (params = {}, format = 'excel') => {

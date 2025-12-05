@@ -141,7 +141,6 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import Chart from 'chart.js/auto'
 import underwriterService from '../services/underwriterService'
-import businessService from '../services/businessService'
 
 // 查询参数
 const queryParams = ref({
@@ -155,71 +154,15 @@ const underwriters = ref([])
 
 // 统计数据
 const statistics = ref({
-  inquiryCount: 0,
-  dealCount: 0,
-  conversionRate: 0,
-  totalAmount: 0,
-  inquiryGrowth: 0,
-  dealGrowth: 0,
-  conversionRateGrowth: 0,
-  totalAmountGrowth: 0
+  inquiryCount: 156,
+  dealCount: 68,
+  conversionRate: 43.6,
+  totalAmount: 458200,
+  inquiryGrowth: 12.5,
+  dealGrowth: 8.3,
+  conversionRateGrowth: -2.1,
+  totalAmountGrowth: 15.2
 })
-
-// 按出单员统计数据
-const underwriterStatistics = ref([])
-
-// 按险种统计数据
-const insuranceStatistics = ref([])
-
-// 时间趋势数据
-const timeTrendData = ref({
-  labels: [],
-  inquiryData: [],
-  dealData: [],
-  conversionData: []
-})
-
-// 获取统计数据
-const fetchStatistics = async () => {
-  try {
-    const response = await businessService.getBusinessStatistics({
-      type: 'statistics'
-    })
-    
-    // 更新统计数据
-    statistics.value = {
-      inquiryCount: response.inquiryCount || 0,
-      dealCount: response.dealCount || 0,
-      conversionRate: response.conversionRate || 0,
-      totalAmount: response.totalAmount || 0,
-      inquiryGrowth: response.inquiryGrowth || 0,
-      dealGrowth: response.dealGrowth || 0,
-      conversionRateGrowth: response.conversionRateGrowth || 0,
-      totalAmountGrowth: response.totalAmountGrowth || 0
-    }
-    
-    // 更新按出单员统计数据
-    underwriterStatistics.value = response.underwriterStatistics || []
-    
-    // 更新按险种统计数据
-    insuranceStatistics.value = response.insuranceStatistics || []
-    
-    // 更新时间趋势数据
-    timeTrendData.value = response.timeTrendData || {
-      labels: [],
-      inquiryData: [],
-      dealData: [],
-      conversionData: []
-    }
-    
-    // 重新初始化图表
-    initUnderwriterChart()
-    initInsuranceChart()
-    initTimeTrendChart()
-  } catch (error) {
-    console.error('获取统计数据失败:', error)
-  }
-}
 
 // 时间趋势类型
 const timeTrendType = ref('day')
@@ -256,14 +199,15 @@ const loadUnderwriters = async () => {
 
 // 处理查询
 const handleSearch = () => {
-  // 根据查询参数获取统计数据
-  fetchStatistics()
+  // 这里可以添加查询逻辑
+  initUnderwriterChart()
+  initInsuranceChart()
+  initTimeTrendChart()
 }
 
 // 在组件挂载时加载数据
-onMounted(async () => {
-  await loadUnderwriters()
-  await fetchStatistics()
+onMounted(() => {
+  loadUnderwriters()
 })
 
 // 初始化按出单员统计图表
@@ -279,10 +223,10 @@ const initUnderwriterChart = () => {
     underwriterChartInstance.destroy()
   }
   
-  // 使用从API获取的数据
-  const labels = underwriterStatistics.value.map(item => item.name) || ['出单员A', '出单员B', '出单员C']
-  const inquiryData = underwriterStatistics.value.map(item => item.inquiryCount) || [65, 58, 80]
-  const dealData = underwriterStatistics.value.map(item => item.dealCount) || [28, 35, 42]
+  // 模拟数据
+  const labels = ['出单员A', '出单员B', '出单员C']
+  const inquiryData = [65, 58, 80]
+  const dealData = [28, 35, 42]
   
   try {
     const ctx = underwriterChart.value.getContext('2d')
@@ -362,10 +306,10 @@ const initInsuranceChart = () => {
     insuranceChartInstance.destroy()
   }
   
-  // 使用从API获取的数据
-  const labels = insuranceStatistics.value.map(item => item.name) || ['个人意外险', '团体意外险', '学平险', '建工险', '燃气险', '雇主险']
-  const inquiryData = insuranceStatistics.value.map(item => item.inquiryCount) || [45, 40, 28, 22, 16, 12]
-  const dealData = insuranceStatistics.value.map(item => item.dealCount) || [20, 20, 18, 10, 8, 8]
+  // 模拟数据
+  const labels = ['个人意外险', '团体意外险', '学平险', '建工险', '燃气险', '雇主险']
+  const inquiryData = [45, 40, 28, 22, 16, 12]
+  const dealData = [20, 20, 18, 10, 8, 8]
   
   try {
     const ctx = insuranceChart.value.getContext('2d')
@@ -445,11 +389,11 @@ const initTimeTrendChart = () => {
     timeTrendChartInstance.destroy()
   }
   
-  // 使用从API获取的数据
-  const labels = timeTrendData.value.labels || ['1日', '2日', '3日', '4日', '5日', '6日', '7日', '8日', '9日', '10日', '11日', '12日', '13日', '14日', '15日', '16日', '17日', '18日', '19日', '20日', '21日', '22日', '23日', '24日', '25日', '26日', '27日', '28日', '29日', '30日']
-  const inquiryData = timeTrendData.value.inquiryData || labels.map(() => Math.floor(Math.random() * 10) + 15)
-  const dealData = timeTrendData.value.dealData || labels.map(() => Math.floor(Math.random() * 5) + 5)
-  const conversionData = timeTrendData.value.conversionData || labels.map(() => Math.floor(Math.random() * 10) + 35)
+  // 模拟数据
+  const labels = ['1日', '2日', '3日', '4日', '5日', '6日', '7日', '8日', '9日', '10日', '11日', '12日', '13日', '14日', '15日', '16日', '17日', '18日', '19日', '20日', '21日', '22日', '23日', '24日', '25日', '26日', '27日', '28日', '29日', '30日']
+  const inquiryData = labels.map(() => Math.floor(Math.random() * 10) + 15)
+  const dealData = labels.map(() => Math.floor(Math.random() * 5) + 5)
+  const conversionData = labels.map(() => Math.floor(Math.random() * 10) + 35)
   
   try {
     const ctx = timeTrendChart.value.getContext('2d')

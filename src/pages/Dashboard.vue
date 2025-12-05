@@ -166,24 +166,7 @@ const statistics = ref({
   monthlyPerformanceGrowth: 0
 })
 
-// 获取统计数据
-const fetchStatistics = async () => {
-  try {
-    // 从API获取统计数据
-    const response = await businessService.getBusinessStatistics()
-    
-    // 更新统计数据
-    statistics.value = {
-      ...statistics.value,
-      todayInquiryCount: response.todayInquiryCount || 0,
-      todayDealCount: response.todayDealCount || 0,
-      monthlyPerformance: response.monthlyPerformance || 0
-    }
-  } catch (error) {
-    console.error('获取统计数据失败:', error)
-    // API调用失败时，保持数据为默认值0
-  }
-}
+// 统计数据保持默认值，不调用API
 
 // 最近业务数据
 const recentBusiness = ref([
@@ -224,7 +207,6 @@ const userInfo = computed(() => {
 
 // 初始化数据
 const initData = async () => {
-  await fetchStatistics()
   await loadRecentBusiness()
   initCharts()
 }

@@ -40,7 +40,9 @@ CREATE TABLE `business` (
   CONSTRAINT `business_ibfk_252` FOREIGN KEY (`insurance_id`) REFERENCES `insurance` (`id`) ON UPDATE CASCADE,
   CONSTRAINT `business_ibfk_253` FOREIGN KEY (`insurance_type_id`) REFERENCES `insurance_category` (`id`) ON UPDATE CASCADE,
   CONSTRAINT `business_ibfk_254` FOREIGN KEY (`specific_insurance_id`) REFERENCES `insurance` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `business` (`id`, `agent_id`, `underwriter_id`, `insurance_id`, `customer_name`, `customer_phone`, `customer_email`, `policy_number`, `premium_amount`, `coverage_amount`, `start_date`, `end_date`, `status`, `inquiry_date`, `approval_date`, `remarks`, `created_at`, `updated_at`, `deleted_at`, `client_type`, `personal_name`, `company_name`, `plate_number`, `insurance_type_id`, `specific_insurance_id`, `inquiry_amount`, `deal_status`, `reminder_time`, `deal_time`, `follow_up_remark`) VALUES (12, 39, 5, 52, 'XXXXXXXX有限公司', '13800138000', '', 'F0000000000000002', '30000.00', '30000.00', '2025-12-04 20:53:17', '2026-12-04 20:53:17', 'pending', '2025-12-04 20:53:17', NULL, '', '2025-12-04 20:53:17', '2025-12-04 20:53:50', NULL, 'company', '张三', 'XXXXXXXX有限公司', '', 2, 52, '30000.00', 'success', '2025-12-07 16:00:00', NULL, '');
 
 CREATE TABLE `business_level` (
   `id` int NOT NULL AUTO_INCREMENT,

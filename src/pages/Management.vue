@@ -9,20 +9,13 @@
         <div v-else-if="activeTab === 'insurance'">
           <h1 class="text-xl font-semibold text-gray-800">险种管理</h1>
         </div>
-        <div v-if="activeTab === 'agent'" class="flex space-x-2">
-          <button 
-            @click="addItem" 
-            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            <i class="fas fa-plus mr-1"></i>添加业务员
-          </button>
-          <button 
-            @click="showImportModal = true" 
-            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-          >
-            <i class="fas fa-file-import mr-1"></i>批量导入
-          </button>
-        </div>
+        <button 
+          @click="addItem" 
+          v-if="activeTab === 'agent'" 
+          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          <i class="fas fa-plus mr-1"></i>添加业务员
+        </button>
       </div>
     </div>
     
@@ -115,7 +108,7 @@
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="item in paginatedInsuranceList" :key="item.id">
+                <tr v-for="item in insuranceList" :key="item.id">
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {{ item.name }}
                   </td>
@@ -162,54 +155,6 @@
             <i class="fas fa-shield-alt text-4xl text-gray-300 mb-3"></i>
             <p class="text-gray-500">暂无险种数据</p>
           </div>
-          
-          <!-- 分页 -->
-          <div v-if="insuranceList.length > 0" class="flex justify-between items-center px-6 py-3 bg-white border-t border-gray-200">
-            <div class="text-sm text-gray-500">
-              共 {{ insuranceList.length }} 条记录，每页 {{ pageSize }} 条，第 {{ currentPage }} 页/共 {{ Math.ceil(insuranceList.length / pageSize) }} 页
-            </div>
-            <div class="flex items-center space-x-1">
-              <button 
-                @click="goToPage(1)" 
-                :disabled="currentPage === 1"
-                class="px-3 py-1 border rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                首页
-              </button>
-              <button 
-                @click="prevPage" 
-                :disabled="currentPage === 1"
-                class="px-2 py-1 border rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <i class="fas fa-chevron-left"></i>
-              </button>
-              
-              <!-- 页码显示 -->
-              <button 
-                v-for="page in getPageNumbers()" 
-                :key="page"
-                @click="goToPage(page)"
-                :class="['px-3 py-1 border rounded-md text-sm font-medium', currentPage === page ? 'bg-blue-100 text-blue-800 border-blue-300' : 'text-gray-700 bg-white hover:bg-gray-50']"
-              >
-                {{ page }}
-              </button>
-              
-              <button 
-                @click="nextPage" 
-                :disabled="currentPage === Math.ceil(insuranceList.length / pageSize)"
-                class="px-2 py-1 border rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <i class="fas fa-chevron-right"></i>
-              </button>
-              <button 
-                @click="goToPage(Math.ceil(insuranceList.length / pageSize))" 
-                :disabled="currentPage === Math.ceil(insuranceList.length / pageSize)"
-                class="px-3 py-1 border rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                末页
-              </button>
-            </div>
-          </div>
         </div>
       </div>
       
@@ -245,7 +190,7 @@
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="item in paginatedAgentList" :key="item.id">
+                <tr v-for="item in agentList" :key="item.id">
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {{ item.name }}
                   </td>
@@ -296,16 +241,9 @@
           <!-- 分页 -->
           <div v-if="agentList.length > 0" class="flex justify-between items-center px-6 py-3 bg-white border-t border-gray-200">
             <div class="text-sm text-gray-500">
-              共 {{ agentList.length }} 条记录，每页 {{ pageSize }} 条，第 {{ currentPage }} 页/共 {{ Math.ceil(agentList.length / pageSize) }} 页
+              共 {{ agentList.length }} 条记录
             </div>
             <div class="flex items-center space-x-1">
-              <button 
-                @click="goToPage(1)" 
-                :disabled="currentPage === 1"
-                class="px-3 py-1 border rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                首页
-              </button>
               <button 
                 @click="prevPage" 
                 :disabled="currentPage === 1"
@@ -313,30 +251,22 @@
               >
                 <i class="fas fa-chevron-left"></i>
               </button>
-              
-              <!-- 页码显示 -->
               <button 
-                v-for="page in getPageNumbers()" 
-                :key="page"
-                @click="goToPage(page)"
-                :class="['px-3 py-1 border rounded-md text-sm font-medium', currentPage === page ? 'bg-blue-100 text-blue-800 border-blue-300' : 'text-gray-700 bg-white hover:bg-gray-50']"
+                class="px-3 py-1 border rounded-md text-sm font-medium bg-blue-100 text-blue-800"
               >
-                {{ page }}
+                1
               </button>
-              
+              <button 
+                class="px-3 py-1 border rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                2
+              </button>
               <button 
                 @click="nextPage" 
-                :disabled="currentPage === Math.ceil(agentList.length / pageSize)"
+                :disabled="currentPage === totalPages"
                 class="px-2 py-1 border rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <i class="fas fa-chevron-right"></i>
-              </button>
-              <button 
-                @click="goToPage(Math.ceil(agentList.length / pageSize))" 
-                :disabled="currentPage === Math.ceil(agentList.length / pageSize)"
-                class="px-3 py-1 border rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                末页
               </button>
             </div>
           </div>
@@ -695,89 +625,10 @@
       </div>
     </div>
   </div>
-
-  <!-- 批量导入模态框 -->
-  <div v-if="showImportModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-    <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-semibold">批量导入业务员</h2>
-        <button @click="closeImportModal" class="text-gray-500 hover:text-gray-700">
-          <i class="fas fa-times text-xl"></i>
-        </button>
-      </div>
-
-      <div class="mb-4">
-        <label class="block text-gray-700 mb-2">
-          请选择Excel文件：
-        </label>
-        <div class="flex items-center space-x-3">
-          <input 
-            type="file" 
-            accept=".xlsx,.xls" 
-            @change="handleFileChange"
-            class="hidden"
-            id="agent-import-file"
-          />
-          <label for="agent-import-file" class="px-4 py-2 bg-blue-500 text-white rounded cursor-pointer hover:bg-blue-600 transition-colors">
-            <i class="fas fa-file-upload mr-1"></i>选择文件
-          </label>
-          <span v-if="importFile" class="text-sm text-gray-600">
-            {{ importFile.name }}
-          </span>
-          <span v-else class="text-sm text-gray-500">
-            未选择文件
-          </span>
-        </div>
-      </div>
-
-      <div class="mb-4 p-4 bg-yellow-50 rounded">
-        <h3 class="font-medium text-yellow-800 mb-2">
-          <i class="fas fa-info-circle mr-1"></i>导入说明：
-        </h3>
-        <ul class="text-sm text-yellow-700 list-disc pl-5 space-y-1">
-          <li>支持.xlsx和.xls格式的Excel文件</li>
-          <li>Excel第一行应为表头，包含：姓名、联系电话、电子邮箱、所属部门、状态</li>
-          <li>状态字段可填写：在职/离职/禁用，默认为在职</li>
-          <li>联系电话、电子邮箱和所属部门可选填</li>
-        </ul>
-      </div>
-
-      <div class="mb-4 flex justify-end">
-        <button 
-          @click="closeImportModal" 
-          class="mr-2 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-        >
-          取消
-        </button>
-        <button 
-          @click="importAgents" 
-          class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-          :disabled="isImporting"
-        >
-          <i class="fas fa-file-import mr-1"></i>
-          {{ isImporting ? '导入中...' : '开始导入' }}
-        </button>
-      </div>
-
-      <!-- 导入结果显示 -->
-      <div v-if="importResult" class="mt-4 p-4 border rounded">
-        <h3 class="font-medium mb-2">导入结果：</h3>
-        <div class="space-y-2">
-          <p>总记录数：{{ importResult.total }}</p>
-          <p>成功：{{ importResult.success }}</p>
-          <p>失败：{{ importResult.failed }}</p>
-          <p v-if="importResult.failed > 0" class="text-red-600">
-            失败原因：{{ importResult.errorMessages ? importResult.errorMessages.join('; ') : '未知错误' }}
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, inject, computed } from 'vue'
-import * as XLSX from 'xlsx'
+import { ref, onMounted, inject } from 'vue'
 import insuranceService from '../services/insuranceService'
 import agentService from '../services/agentService'
 
@@ -799,29 +650,10 @@ const insuranceSearchKeyword = ref('')
 // 代理人列表
 const agentList = ref([])
 const agentSearchKeyword = ref('')
-const showImportModal = ref(false)
-const importFile = ref(null)
-const importResult = ref(null)
-const isImporting = ref(false)
 
 // 分页信息
 const currentPage = ref(1)
-const pageSize = ref(20)
 const totalPages = ref(1)
-const totalItems = ref(0)
-
-// 计算分页数据
-const paginatedAgentList = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return agentList.value.slice(start, end)
-})
-
-const paginatedInsuranceList = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return insuranceList.value.slice(start, end)
-})
 
 // 新增表单数据
 const formData = ref({
@@ -862,19 +694,8 @@ onMounted(() => {
 // 加载险种列表
 const loadInsuranceList = async () => {
   try {
-    const response = await insuranceService.getInsuranceList({
-      page: currentPage.value,
-      pageSize: pageSize.value
-    })
+    const response = await insuranceService.getInsuranceList()
     insuranceList.value = response.data || []
-    // 更新分页信息
-    if (response.pagination) {
-      totalItems.value = response.pagination.totalCount
-      totalPages.value = response.pagination.totalPages
-    } else {
-      totalItems.value = insuranceList.value.length
-      totalPages.value = Math.ceil(insuranceList.value.length / pageSize.value)
-    }
   } catch (error) {
       console.error('加载险种列表失败:', error)
       toast.error('加载险种列表失败')
@@ -902,19 +723,8 @@ const loadInsuranceCategories = async () => {
 // 加载代理人列表
 const loadAgentList = async () => {
   try {
-    const response = await agentService.getAgentList({
-      page: currentPage.value,
-      pageSize: pageSize.value
-    })
+    const response = await agentService.getAgentList()
     agentList.value = response.data || []
-    // 更新分页信息
-    if (response.pagination) {
-      totalItems.value = response.pagination.totalCount
-      totalPages.value = response.pagination.totalPages
-    } else {
-      totalItems.value = agentList.value.length
-      totalPages.value = Math.ceil(agentList.value.length / pageSize.value)
-    }
   } catch (error) {
       console.error('加载代理人列表失败:', error)
       toast.error('加载代理人列表失败')
@@ -924,20 +734,8 @@ const loadAgentList = async () => {
 // 搜索险种
 const searchInsurance = async () => {
   try {
-    const response = await insuranceService.getInsuranceList({ 
-      keyword: insuranceSearchKeyword.value,
-      page: currentPage.value,
-      pageSize: pageSize.value
-    })
+    const response = await insuranceService.getInsuranceList({ keyword: insuranceSearchKeyword.value })
     insuranceList.value = response.data || []
-    // 更新分页信息
-    if (response.pagination) {
-      totalItems.value = response.pagination.totalCount
-      totalPages.value = response.pagination.totalPages
-    } else {
-      totalItems.value = insuranceList.value.length
-      totalPages.value = Math.ceil(insuranceList.value.length / pageSize.value)
-    }
   } catch (error) {
       console.error('搜索险种失败:', error)
       toast.error('搜索险种失败')
@@ -947,71 +745,12 @@ const searchInsurance = async () => {
 // 搜索代理人
 const searchAgent = async () => {
   try {
-    const response = await agentService.getAgentList({ 
-      keyword: agentSearchKeyword.value,
-      page: currentPage.value,
-      pageSize: pageSize.value
-    })
+    const response = await agentService.searchAgent(agentSearchKeyword.value)
     agentList.value = response.data || []
-    // 更新分页信息
-    if (response.pagination) {
-      totalItems.value = response.pagination.totalCount
-      totalPages.value = response.pagination.totalPages
-    } else {
-      totalItems.value = agentList.value.length
-      totalPages.value = Math.ceil(agentList.value.length / pageSize.value)
-    }
   } catch (error) {
       console.error('搜索代理人失败:', error)
       toast.error('搜索代理人失败')
     }
-}
-
-// 分页导航方法
-const goToPage = (page) => {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page
-    if (activeTab.value === 'insurance') {
-      loadInsuranceList()
-    } else if (activeTab.value === 'agent') {
-      loadAgentList()
-    }
-  }
-}
-
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    goToPage(currentPage.value - 1)
-  }
-}
-
-const nextPage = () => {
-  if (currentPage.value < totalPages.value) {
-    goToPage(currentPage.value + 1)
-  }
-}
-
-// 生成页码数组
-const getPageNumbers = () => {
-  const pages = []
-  const maxVisiblePages = 5 // 最多显示5个页码
-  
-  if (totalPages.value <= maxVisiblePages) {
-    // 总页数少于等于最大可见页数，显示所有页码
-    for (let i = 1; i <= totalPages.value; i++) {
-      pages.push(i)
-    }
-  } else {
-    // 总页数大于最大可见页数，显示部分页码
-    const startPage = Math.max(1, currentPage.value - Math.floor(maxVisiblePages / 2))
-    const endPage = Math.min(totalPages.value, startPage + maxVisiblePages - 1)
-    
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i)
-    }
-  }
-  
-  return pages
 }
 
 // 险种分类编辑相关
@@ -1361,78 +1100,17 @@ const deleteItem = async (type, id) => {
   }
 }
 
-
-
-// 批量导入相关函数
-const handleFileChange = (event) => {
-  importFile.value = event.target.files[0]
-}
-
-const importAgents = async () => {
-  if (!importFile.value) {
-    toast.warning('请选择要导入的文件')
-    return
-  }
-  
-  isImporting.value = true
-  importResult.value = null
-  
-  try {
-    // 读取Excel文件
-    const reader = new FileReader()
-    reader.onload = async (e) => {
-      try {
-        const data = e.target.result
-        const workbook = XLSX.read(data, { type: 'binary' })
-        const sheetName = workbook.SheetNames[0]
-        const worksheet = workbook.Sheets[sheetName]
-        
-        // 将Excel数据转换为JSON
-        const agentsData = XLSX.utils.sheet_to_json(worksheet)
-        
-        // 处理导入数据
-        const formattedAgents = agentsData.map(agent => ({
-          name: agent['姓名'] || agent.name,
-          phone: agent['联系电话'] || agent.phone || '',
-          email: agent['电子邮箱'] || agent.email || '',
-          department: agent['所属部门'] || agent.department || '',
-          status: (agent['状态'] || agent.status) !== '离职' && (agent['状态'] || agent.status) !== '禁用'
-        }))
-        
-        // 调用批量导入API
-        const response = await agentService.batchImportAgent(formattedAgents)
-        
-        importResult.value = response
-        toast.success(response.message)
-        
-        // 重新加载业务员列表
-        await loadAgentList()
-      } catch (error) {
-        console.error('文件解析或导入失败:', error)
-        toast.error('文件解析或导入失败: ' + error.message)
-      } finally {
-        isImporting.value = false
-      }
-    }
-    
-    reader.onerror = (error) => {
-      console.error('文件读取失败:', error)
-      toast.error('文件读取失败')
-      isImporting.value = false
-    }
-    
-    reader.readAsBinaryString(importFile.value)
-  } catch (error) {
-    console.error('导入失败:', error)
-    toast.error('导入失败')
-    isImporting.value = false
+// 分页函数
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
   }
 }
 
-const closeImportModal = () => {
-  showImportModal.value = false
-  importFile.value = null
-  importResult.value = null
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+  }
 }
 
 // 格式化日期
