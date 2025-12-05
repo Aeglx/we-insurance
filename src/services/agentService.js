@@ -114,6 +114,17 @@ const agentService = {
       console.error('搜索代理人失败:', error)
       throw error
     }
+  },
+  
+  // 批量导入代理人
+  batchImportAgent: async (agents) => {
+    try {
+      const response = await api.post('/agent/batch-import', { agents })
+      return response
+    } catch (error) {
+      console.error('批量导入代理人失败:', error)
+      throw error
+    }
   }
 }
 

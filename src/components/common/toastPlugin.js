@@ -16,9 +16,19 @@ const toastPlugin = {
     // 定义$toast方法
     const toast = (options) => {
       // 销毁之前的实例
-      if (toastInstance) {
-        toastInstance.close()
-        toastApp.unmount()
+      if (toastInstance && typeof toastInstance.close === 'function') {
+        try {
+          toastInstance.close()
+        } catch (error) {
+          console.warn('关闭toast实例失败:', error)
+        }
+      }
+      if (toastApp) {
+        try {
+          toastApp.unmount()
+        } catch (error) {
+          console.warn('卸载toast应用失败:', error)
+        }
       }
       
       // 默认配置
@@ -39,8 +49,11 @@ const toastPlugin = {
         ...finalOptions,
         visible: true,
         onClose: () => {
-          toastApp.unmount()
+          if (toastApp) {
+            toastApp.unmount()
+          }
           toastInstance = null
+          toastApp = null
         }
       })
       

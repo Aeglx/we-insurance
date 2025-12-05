@@ -287,6 +287,25 @@ export const useAgentStore = defineStore('agent', {
     // 清除错误信息
     clearError() {
       this.error = null
+    },
+    
+    // 批量导入代理人
+    async batchImportAgent(agents) {
+      try {
+        this.loading = true
+        this.error = null
+        
+        const response = await agentService.batchImportAgent(agents)
+        
+        // 更新代理人列表
+        await this.getAgentList()
+        
+        return response
+      } catch (error) {
+        this.error = error.message || '批量导入代理人失败'
+        throw error
+      } finally {
+        this.loading = false
+      }
     }
-  }
 })

@@ -23,10 +23,95 @@ app.use(cors())
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 
+// 添加日志中间件，记录所有请求
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`)
+  next()
+})
+
 // 简单测试路由 - 直接在app实例上定义
 app.get('/test', (req, res) => {
   console.log('收到测试请求')
   res.status(200).json({ message: 'Test route works!' })
+})
+
+// 确保批量导入路由被注册在最前面，不受其他路由影响
+console.log('在文件最前面注册批量导入路由')
+app.post('/api/agent/batch-import', async (req, res) => {
+  try {
+    console.log('收到批量导入请求:', req.body);
+    
+    const { agents } = req.body;
+    
+    if (!agents || !Array.isArray(agents) || agents.length === 0) {
+      return res.status(400).json({ 
+        code: 400, 
+        message: '导入数据不能为空',
+        success: false 
+      });
+    }
+    
+    let successCount = 0;
+    let errorCount = 0;
+    const errors = [];
+    
+    // 批量导入代理人
+    for (const agent of agents) {
+      try {
+        // 自动生成用户名：使用姓名的拼音首字母 + 时间戳后6位
+        const timestamp = Date.now().toString().slice(-6);
+        const getPinyinFirstLetter = (str) => {
+          return str.replace(/[\u4e00-\u9fa5]/g, function (char) {
+            return char.charCodeAt(0).toString(16).slice(-4);
+          }).slice(0, 3).toUpperCase();
+        };
+        const username = `${getPinyinFirstLetter(agent.name)}${timestamp}`;
+        
+        // 自动生成密码：使用默认密码 'agent123'
+        const password = 'agent123';
+        
+        // 创建新代理人
+        await User.create({
+          username,
+          name: agent.name,
+          password,
+          phone: agent.phone || '',
+          email: agent.email || '',
+          role: 'agent',
+          status: agent.status !== undefined ? agent.status : true,
+          department: agent.department || ''
+        });
+        
+        successCount++;
+      } catch (error) {
+        errorCount++;
+        errors.push({
+          name: agent.name,
+          error: error.message
+        });
+        console.error(`导入代理人 ${agent.name} 失败:`, error);
+      }
+    }
+    
+    res.json({
+      code: 200,
+      success: true,
+      message: `批量导入完成，成功 ${successCount} 条，失败 ${errorCount} 条`,
+      data: {
+        successCount,
+        errorCount,
+        errors
+      }
+    });
+  } catch (error) {
+    console.error('批量导入代理人失败:', error);
+    res.status(500).json({ 
+      code: 500,
+      success: false,
+      message: '批量导入代理人失败',
+      error: error.message 
+    });
+  }
 })
 
 // 统计API路由 - 直接在app实例上定义
@@ -214,10 +299,9 @@ const setupDatabase = async () => {
 }
 
 // 险种API接口
-// 获取险种列表
 app.get('/api/insurance/list', async (req, res) => {
   try {
-    const { keyword, typeId } = req.query
+    const { keyword, typeId, page = 1, pageSize = 20 } = req.query
     const where = {}
     
     if (keyword) {
@@ -231,9 +315,20 @@ app.get('/api/insurance/list', async (req, res) => {
       where.category_id = typeId
     }
     
+    // 计算分页参数
+    const currentPage = parseInt(page)
+    const limit = parseInt(pageSize)
+    const offset = (currentPage - 1) * limit
+    
+    // 获取总数
+    const totalCount = await db.Insurance.count({ where })
+    
+    // 获取分页数据
     const insuranceList = await db.Insurance.findAll({
       where,
       order: [['created_at', 'DESC']],
+      limit,
+      offset,
       include: [
         {
           model: db.InsuranceCategory,
@@ -262,7 +357,12 @@ app.get('/api/insurance/list', async (req, res) => {
       code: 200, 
       message: '获取成功',
       data: formattedList,
-      total: formattedList.length
+      pagination: {
+        currentPage,
+        pageSize: limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
     })
   } catch (error) {
     console.error('获取险种列表失败:', error)
@@ -623,7 +723,7 @@ app.get('/api/underwriter/list', async (req, res) => {
 // 获取代理人列表接口
 app.get('/api/agent/list', async (req, res) => {
   try {
-    const { keyword, status } = req.query
+    const { keyword, status, page = 1, pageSize = 20 } = req.query
     const where = {
       role: 'agent'
     }
@@ -641,9 +741,20 @@ app.get('/api/agent/list', async (req, res) => {
       where.status = status === 'true' || status === true
     }
     
+    // 计算分页参数
+    const currentPage = parseInt(page)
+    const limit = parseInt(pageSize)
+    const offset = (currentPage - 1) * limit
+    
+    // 获取总数
+    const totalCount = await db.User.count({ where })
+    
+    // 获取分页数据
     const agentList = await db.User.findAll({
       where,
-      order: [['created_at', 'DESC']]
+      order: [['created_at', 'DESC']],
+      limit,
+      offset
     })
     
     // 转换为前端需要的格式
@@ -662,7 +773,17 @@ app.get('/api/agent/list', async (req, res) => {
       }
     })
     
-    res.json({ code: 200, message: '获取成功', data: formattedList })
+    res.json({ 
+      code: 200, 
+      message: '获取成功', 
+      data: formattedList,
+      pagination: {
+        currentPage,
+        pageSize: limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    })
   } catch (error) {
     console.error('获取代理人列表失败:', error)
     res.status(500).json({ error: '获取代理人列表失败' })
@@ -1710,13 +1831,45 @@ const PORT = 3000 // 强制设置后端端口为3000
 // 先初始化数据库，再启动服务器
 async function startServer() {
   try {
+    console.log('startServer函数开始执行')
     await setupDatabase()
+    console.log('数据库初始化完成，开始注册路由')
     
     // 简单测试路由
     app.get('/api/test', (req, res) => {
       console.log('收到测试请求')
       res.status(200).json({ message: 'Test route works!' })
     })
+    
+    // 调试路由：查看所有已注册的路由
+    app.get('/api/routes', (req, res) => {
+      const routes = [];
+      // 检查app._router.stack
+      if (app._router && app._router.stack) {
+        app._router.stack.forEach(middleware => {
+          if (middleware.route) {
+            // 路由中间件
+            routes.push({
+              path: middleware.route.path,
+              methods: Object.keys(middleware.route.methods)
+            });
+          } else if (middleware.name === 'router') {
+            // 子路由
+            middleware.handle.stack.forEach(handler => {
+              if (handler.route) {
+                routes.push({
+                  path: handler.route.path,
+                  methods: Object.keys(handler.route.methods)
+                });
+              }
+            });
+          }
+        });
+      }
+      res.json({ routes });
+    })
+    
+    // 批量导入路由已在文件最前面注册
     
     // 获取业务统计数据
     app.get('/api/business/statistics', (req, res) => {
@@ -1750,16 +1903,37 @@ async function startServer() {
       }
     })
     
+    console.log('所有路由注册完成，开始监听端口')
     app.listen(PORT, () => {
       console.log(`后端服务器正在运行，端口: ${PORT}`)
     })
+    
+    // 批量导入路由已在文件最前面注册
   } catch (error) {
     console.error('服务器启动失败:', error)
     process.exit(1)
   }
 }
 
-
-
 // 启动服务器
 startServer()
+
+// 直接在app上注册一个测试路由
+app.get('/api/direct-test', (req, res) => {
+  console.log('收到直接测试请求')
+  res.status(200).json({ message: 'Direct test route works!' })
+})
+
+// 直接在app上注册批量导入路由
+app.post('/api/agent/direct-batch-import', async (req, res) => {
+  try {
+    console.log('收到直接批量导入请求:', req.body);
+    res.json({
+      success: true,
+      message: '直接批量导入接口测试成功'
+    });
+  } catch (error) {
+    console.error('直接批量导入代理人失败:', error);
+    res.status(500).json({ error: '直接批量导入代理人失败' });
+  }
+})
