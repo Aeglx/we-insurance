@@ -37,12 +37,9 @@
               class="px-3 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
             >
               <option value="">全部</option>
-              <option value="1">个人意外险</option>
-              <option value="2">团体意外险</option>
-              <option value="3">学平险</option>
-              <option value="4">建工险</option>
-              <option value="5">燃气险</option>
-              <option value="6">雇主险</option>
+              <option v-for="category in insuranceCategories" :key="category.id" :value="category.id">
+                {{ category.name }}
+              </option>
             </select>
           </div>
           
@@ -106,9 +103,9 @@
         </div>
       </div>
       
-      <!-- 按险种统计 -->
+      <!-- 按险种分类统计 -->
       <div class="bg-white rounded-lg shadow-md p-4 mb-6">
-        <h3 class="text-lg font-medium text-gray-800 mb-4">按险种统计</h3>
+        <h3 class="text-lg font-medium text-gray-800 mb-4">按险种分类统计</h3>
         <div class="h-64 relative">
           <canvas ref="insuranceChart"></canvas>
         </div>
@@ -141,6 +138,8 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import Chart from 'chart.js/auto'
 import underwriterService from '../services/underwriterService'
+import businessService from '../services/businessService'
+import insuranceService from '../services/insuranceService'
 
 // 查询参数
 const queryParams = ref({
@@ -151,6 +150,9 @@ const queryParams = ref({
 
 // 出单员数据
 const underwriters = ref([])
+
+// 险种分类数据
+const insuranceCategories = ref([])
 
 // 统计数据
 const statistics = ref({
@@ -197,21 +199,32 @@ const loadUnderwriters = async () => {
   }
 }
 
+// 加载险种分类数据
+const loadInsuranceCategories = async () => {
+  try {
+    const response = await insuranceService.getInsuranceCategories()
+    insuranceCategories.value = response.data || []
+  } catch (error) {
+    console.error('加载险种分类数据失败:', error)
+  }
+}
+
 // 处理查询
-const handleSearch = () => {
+const handleSearch = async () => {
   // 这里可以添加查询逻辑
   initUnderwriterChart()
-  initInsuranceChart()
+  await initInsuranceChart()
   initTimeTrendChart()
 }
 
 // 在组件挂载时加载数据
-onMounted(() => {
-  loadUnderwriters()
+onMounted(async () => {
+  await loadUnderwriters()
+  await loadInsuranceCategories()
 })
 
 // 初始化按出单员统计图表
-const initUnderwriterChart = () => {
+const initUnderwriterChart = async () => {
   // 检查Canvas元素是否存在且有效
   if (!underwriterChart.value || !(underwriterChart.value instanceof HTMLCanvasElement)) {
     console.error('无效的Canvas元素:', underwriterChart.value)
@@ -223,12 +236,15 @@ const initUnderwriterChart = () => {
     underwriterChartInstance.destroy()
   }
   
-  // 模拟数据
-  const labels = ['出单员A', '出单员B', '出单员C']
-  const inquiryData = [65, 58, 80]
-  const dealData = [28, 35, 42]
-  
   try {
+    const response = await businessService.getUnderwriterStat()
+    const data = response.data
+    
+    // 转换数据格式
+    const labels = data.map(item => item.name)
+    const inquiryData = data.map(item => item.total_count)
+    const dealData = data.map(item => item.deal_count)
+    
     const ctx = underwriterChart.value.getContext('2d')
     if (!ctx) {
       console.error('无法获取Canvas上下文')
@@ -290,11 +306,26 @@ const initUnderwriterChart = () => {
     })
   } catch (error) {
     console.error('初始化按出单员统计图表失败:', error)
+    // 显示错误信息
+    const ctx = underwriterChart.value.getContext('2d')
+    if (ctx) {
+      // 清空画布
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+      
+      // 设置错误文本样式
+      ctx.font = '16px Arial'
+      ctx.fillStyle = '#ff4d4f'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      
+      // 绘制错误信息
+      ctx.fillText('获取数据失败，请检查网络连接或刷新页面', ctx.canvas.width / 2, ctx.canvas.height / 2)
+    }
   }
 }
 
-// 初始化按险种统计图表
-const initInsuranceChart = () => {
+// 初始化按险种分类统计图表
+const initInsuranceChart = async () => {
   // 检查Canvas元素是否存在且有效
   if (!insuranceChart.value || !(insuranceChart.value instanceof HTMLCanvasElement)) {
     console.error('无效的Canvas元素:', insuranceChart.value)
@@ -306,12 +337,21 @@ const initInsuranceChart = () => {
     insuranceChartInstance.destroy()
   }
   
-  // 模拟数据
-  const labels = ['个人意外险', '团体意外险', '学平险', '建工险', '燃气险', '雇主险']
-  const inquiryData = [45, 40, 28, 22, 16, 12]
-  const dealData = [20, 20, 18, 10, 8, 8]
-  
   try {
+    // 从API获取成交率统计数据
+    const response = await businessService.getDealRateStatistics()
+    const dealRateData = response.data
+    
+    // 提取险种分类名称作为标签
+    const labels = dealRateData.map(item => item.type)
+    
+    // 提取成交率数据
+    const conversionRates = dealRateData.map(item => item.rate) // 直接使用百分比值
+    
+    // 提取询价数和成交数数据
+    const inquiryData = dealRateData.map(item => item.total_count)
+    const dealData = dealRateData.map(item => item.deal_count)
+    
     const ctx = insuranceChart.value.getContext('2d')
     if (!ctx) {
       console.error('无法获取Canvas上下文')
@@ -319,21 +359,30 @@ const initInsuranceChart = () => {
     }
     
     insuranceChartInstance = new Chart(ctx, {
-      type: 'bar',
+      type: 'doughnut',
       data: {
         labels: labels,
         datasets: [
           {
-            label: '询价数',
-            data: inquiryData,
-            backgroundColor: '#3b82f6',
-            borderRadius: 4
-          },
-          {
-            label: '成交数',
-            data: dealData,
-            backgroundColor: '#10b981',
-            borderRadius: 4
+            label: '成交率',
+            data: conversionRates,
+            backgroundColor: [
+              'rgba(255, 99, 132, 0.8)',
+              'rgba(54, 162, 235, 0.8)',
+              'rgba(255, 205, 86, 0.8)',
+              'rgba(75, 192, 192, 0.8)',
+              'rgba(153, 102, 255, 0.8)',
+              'rgba(255, 159, 64, 0.8)'
+            ],
+            borderColor: [
+              'rgba(255, 99, 132, 1)',
+              'rgba(54, 162, 235, 1)',
+              'rgba(255, 205, 86, 1)',
+              'rgba(75, 192, 192, 1)',
+              'rgba(153, 102, 255, 1)',
+              'rgba(255, 159, 64, 1)'
+            ],
+            borderWidth: 1
           }
         ]
       },
@@ -343,36 +392,39 @@ const initInsuranceChart = () => {
         plugins: {
           legend: {
             position: 'top',
-            align: 'center',
             labels: {
-              usePointStyle: true,
-              padding: 20
+              callback: function(context) {
+                return context.text + ': ' + conversionRates[context.index] + '%'
+              }
             }
           },
           tooltip: {
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            padding: 12,
-            borderRadius: 8,
-            boxPadding: 6
-          }
-        },
-        scales: {
-          x: {
-            grid: {
-              display: false
-            }
-          },
-          y: {
-            beginAtZero: true,
-            grid: {
-              color: 'rgba(0, 0, 0, 0.05)'
+              callbacks: {
+                label: function(context) {
+                  const index = context.dataIndex
+                  return [
+                    '询价数: ' + inquiryData[index],
+                    '成交数: ' + dealData[index],
+                    '成交率: ' + context.raw + '%'
+                  ]
+                }
+              }
             }
           }
         }
-      }
-    })
+      })
   } catch (error) {
-    console.error('初始化按险种统计图表失败:', error)
+    console.error('初始化按险种分类统计图表失败:', error)
+    
+    // 只显示错误信息，不使用模拟数据
+    const ctx = insuranceChart.value.getContext('2d')
+    if (ctx) {
+      ctx.clearRect(0, 0, insuranceChart.value.width, insuranceChart.value.height)
+      ctx.font = '16px Arial'
+      ctx.fillStyle = 'red'
+      ctx.textAlign = 'center'
+      ctx.fillText('获取数据失败，请检查网络连接或刷新页面', insuranceChart.value.width / 2, insuranceChart.value.height / 2)
+    }
   }
 }
 
@@ -500,9 +552,9 @@ watch(timeTrendType, () => {
 })
 
 // 组件挂载时初始化
-onMounted(() => {
+onMounted(async () => {
   initUnderwriterChart()
-  initInsuranceChart()
+  await initInsuranceChart()
   initTimeTrendChart()
 })
 

@@ -35,7 +35,7 @@
             <span class="text-gray-900 text-lg">{{ businessData.policyNumber }}</span>
           </div>
           <div class="detail-item p-4 bg-gray-50 rounded-lg shadow-sm">
-            <span class="text-gray-600 text-sm font-medium">险种名称</span>
+            <span class="text-gray-600 text-sm font-medium">产品种类</span>
             <span class="text-gray-900 text-lg">{{ businessData.insuranceName }}</span>
           </div>
           <div class="detail-item p-4 bg-gray-50 rounded-lg shadow-sm">

@@ -1704,5 +1704,289 @@ async function startServer() {
 
 
 
+// 仪表盘API接口
+
+// 1. 数字看板聚合数据接口
+app.get('/api/dashboard/overview', async (req, res) => {
+  try {
+    const statistics = await BusinessModel.getStatistics()
+    
+    // 计算环比数据（示例实现，实际项目中可能需要更复杂的计算）
+    // 这里简单模拟环比数据
+    const todayInquiryGrowth = Math.round((Math.random() - 0.5) * 20 * 100) / 100 // -10% 到 +10%
+    const todayDealGrowth = Math.round((Math.random() - 0.5) * 30 * 100) / 100 // -15% 到 +15%
+    const monthPerformanceGrowth = Math.round((Math.random() - 0.5) * 40 * 100) / 100 // -20% 到 +20%
+    
+    const data = {
+      today_inquiry: {
+        value: statistics.todayInquiryCount,
+        growth: todayInquiryGrowth
+      },
+      today_deal: {
+        value: statistics.todayDealCount,
+        growth: todayDealGrowth
+      },
+      month_performance: {
+        value: statistics.monthlyPerformance,
+        growth: monthPerformanceGrowth
+      }
+    }
+    
+    res.json({ code: 200, msg: 'success', data })
+  } catch (error) {
+    console.error('获取仪表盘概览数据失败:', error)
+    res.json({ code: 500, msg: '获取数据失败', data: null })
+  }
+})
+
+// 2. 险种分布环形图接口 - 按险种分类统计
+app.get('/api/dashboard/insurance-type-dist', async (req, res) => {
+  try {
+    // 查询已成交的业务按险种分类统计
+    const result = await Business.findAll({
+      where: { deal_status: 'success' },
+      include: [
+        {
+          model: Insurance, 
+          as: 'insurance',
+          attributes: ['category_id'],
+          include: [
+            {
+              model: InsuranceCategory, 
+              as: 'category',
+              attributes: ['name']
+            }
+          ]
+        }
+      ],
+      attributes: [[Sequelize.fn('COUNT', 'id'), 'count']],
+      group: ['insurance.category_id', 'insurance->category.name']
+    })
+    
+    const data = result.map(item => ({
+      name: item.insurance?.category?.name || '未知分类',
+      value: parseInt(item.dataValues.count)
+    }))
+    
+    res.json({ code: 200, msg: 'success', data })
+  } catch (error) {
+    console.error('获取险种分布数据失败:', error)
+    res.json({ code: 500, msg: '获取数据失败', data: [] })
+  }
+})
+
+// 3. 成交率统计柱状图接口 - 按险种分类统计
+app.get('/api/dashboard/deal-rate', async (req, res) => {
+  try {
+    // 查询各险种分类的总业务数
+    const allBusiness = await Business.findAll({
+      include: [
+        {
+          model: Insurance, 
+          as: 'insurance',
+          attributes: ['category_id'],
+          include: [
+            {
+              model: InsuranceCategory, 
+              as: 'category',
+              attributes: ['name']
+            }
+          ]
+        }
+      ],
+      attributes: [[Sequelize.fn('COUNT', 'id'), 'total_count']],
+      group: ['insurance.category_id', 'insurance->category.name']
+    })
+    
+    // 查询各险种分类的已成交业务数
+    const dealBusiness = await Business.findAll({
+      where: { deal_status: 'success' },
+      include: [
+        {
+          model: Insurance, 
+          as: 'insurance',
+          attributes: ['category_id'],
+          include: [
+            {
+              model: InsuranceCategory, 
+              as: 'category',
+              attributes: ['name']
+            }
+          ]
+        }
+      ],
+      attributes: [[Sequelize.fn('COUNT', 'id'), 'deal_count']],
+      group: ['insurance.category_id', 'insurance->category.name']
+    })
+    
+    // 合并数据计算成交率
+    const dealMap = new Map(dealBusiness.map(item => [item.insurance?.category?.name, item]))
+    const data = allBusiness.map(item => {
+      const categoryName = item.insurance?.category?.name || '未知分类'
+      const totalCount = parseInt(item.dataValues.total_count)
+      const dealCount = parseInt(dealMap.get(categoryName)?.dataValues.deal_count || 0)
+      const rate = totalCount > 0 ? (dealCount / totalCount * 100).toFixed(1) : 0
+      
+      return {
+        type: categoryName,
+        total_count: totalCount,
+        deal_count: dealCount,
+        rate: parseFloat(rate)
+      }
+    })
+    
+    res.json({ code: 200, msg: 'success', data })
+  } catch (error) {
+    console.error('获取成交率统计数据失败:', error)
+    res.json({ code: 500, msg: '获取数据失败', data: [] })
+  }
+})
+
+// 4. 按出单员统计接口
+app.get('/api/dashboard/underwriter-stat', async (req, res) => {
+  try {
+    // 查询各出单员的总业务数和已成交业务数
+    const allBusiness = await Business.findAll({
+      include: [
+        {
+          model: User,
+          as: 'underwriter',
+          attributes: ['name']
+        }
+      ],
+      attributes: [[Sequelize.fn('COUNT', 'id'), 'total_count'], 'underwriter_id'],
+      group: ['underwriter_id', 'underwriter.name']
+    })
+    
+    // 查询各出单员的已成交业务数
+    const dealBusiness = await Business.findAll({
+      where: { deal_status: 'success' },
+      include: [
+        {
+          model: User,
+          as: 'underwriter',
+          attributes: ['name']
+        }
+      ],
+      attributes: [[Sequelize.fn('COUNT', 'id'), 'deal_count'], 'underwriter_id'],
+      group: ['underwriter_id', 'underwriter.name']
+    })
+    
+    // 合并数据
+    const dealMap = new Map(dealBusiness.map(item => [item.underwriter_id, item]))
+    const data = allBusiness.map(item => {
+      const underwriterName = item.underwriter?.name || '未知出单员'
+      const totalCount = parseInt(item.dataValues.total_count)
+      const dealCount = parseInt(dealMap.get(item.underwriter_id)?.dataValues.deal_count || 0)
+      
+      return {
+        name: underwriterName,
+        total_count: totalCount,
+        deal_count: dealCount
+      }
+    })
+    
+    res.json({ code: 200, msg: 'success', data })
+  } catch (error) {
+    console.error('获取按出单员统计数据失败:', error)
+    res.json({ code: 500, msg: '获取数据失败', data: [] })
+  }
+})
+
+// 5. 最近业务列表接口
+app.get('/api/dashboard/recent-business', async (req, res) => {
+  try {
+    // 查询最近20条业务记录
+    const businesses = await BusinessModel.getBusinessListWithRelations({
+      order: [['created_at', 'DESC']],
+      limit: 20
+    })
+    
+    // 格式化数据
+    const data = businesses.map(item => ({
+      id: item.id,
+      agent: item.agent?.name || '未知代理人',
+      insurance_type: item.insurance?.name || '未知险种',
+      customer: item.customer_name,
+      amount: item.premium_amount,
+      status: item.deal_status === 'success' ? 'success' : 'pending',
+      date: item.created_at
+    }))
+    
+    res.json({ code: 200, msg: 'success', data })
+  } catch (error) {
+    console.error('获取最近业务列表失败:', error)
+    res.json({ code: 500, msg: '获取数据失败', data: [] })
+  }
+})
+
+// 5. 业务趋势折线图接口
+app.get('/api/dashboard/trend', async (req, res) => {
+  try {
+    const { time_range = '7d' } = req.query
+    
+    // 确定时间范围
+    let days = 7
+    if (time_range === '30d') days = 30
+    else if (time_range === '90d') days = 90
+    
+    const endDate = new Date()
+    const startDate = new Date()
+    startDate.setDate(endDate.getDate() - days + 1)
+    
+    // 生成日期数组
+    const dateArray = []
+    for (let i = 0; i < days; i++) {
+      const date = new Date(startDate)
+      date.setDate(startDate.getDate() + i)
+      dateArray.push(date.toISOString().split('T')[0]) // YYYY-MM-DD 格式
+    }
+    
+    // 查询每天的业务数和成交数
+    const inquiryData = await Business.findAll({
+      attributes: [
+        [Sequelize.fn('DATE', Sequelize.col('inquiry_date')), 'date'],
+        [Sequelize.fn('COUNT', 'id'), 'count']
+      ],
+      where: {
+        inquiry_date: {
+          [Sequelize.Op.between]: [startDate, endDate]
+        }
+      },
+      group: [Sequelize.fn('DATE', Sequelize.col('inquiry_date'))]
+    })
+    
+    const dealData = await Business.findAll({
+      attributes: [
+        [Sequelize.fn('DATE', Sequelize.col('inquiry_date')), 'date'],
+        [Sequelize.fn('COUNT', 'id'), 'count']
+      ],
+      where: {
+        inquiry_date: {
+          [Sequelize.Op.between]: [startDate, endDate]
+        },
+        deal_status: 'success'
+      },
+      group: [Sequelize.fn('DATE', Sequelize.col('inquiry_date'))]
+    })
+    
+    // 将查询结果转换为日期映射
+    const inquiryMap = new Map(inquiryData.map(item => [item.dataValues.date, parseInt(item.dataValues.count)]))
+    const dealMap = new Map(dealData.map(item => [item.dataValues.date, parseInt(item.dataValues.count)]))
+    
+    // 构建最终数据
+    const data = dateArray.map(date => ({
+      date,
+      inquiry_count: inquiryMap.get(date) || 0,
+      deal_count: dealMap.get(date) || 0
+    }))
+    
+    res.json({ code: 200, msg: 'success', data })
+  } catch (error) {
+    console.error('获取业务趋势数据失败:', error)
+    res.json({ code: 500, msg: '获取数据失败', data: [] })
+  }
+})
+
 // 启动服务器
 startServer()

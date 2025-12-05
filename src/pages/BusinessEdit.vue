@@ -83,20 +83,20 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="险种名称" prop="specificInsuranceId" required>
+              <el-form-item label="产品种类" prop="specificInsuranceId" required>
                 <el-select
                   v-model="formData.specificInsuranceId"
-                  placeholder="请选择险种名称"
+                  placeholder="请选择产品种类"
                   class="w-full"
                   filterable
                   :disabled="!formData.insuranceTypeId"
-                  @change="onSpecificInsuranceChange"
+                  @change="onProductTypeChange"
                 >
                   <el-option
-                    v-for="insurance in specificInsurances"
-                    :key="insurance.id"
-                    :label="insurance.name"
-                    :value="insurance.id"
+                    v-for="product in specificProducts"
+                    :key="product.id"
+                    :label="product.name"
+                    :value="product.id"
                   ></el-option>
                 </el-select>
               </el-form-item>
@@ -339,7 +339,7 @@ const underwriters = ref([])
 
 // 险种相关
 const insuranceTypes = ref([])
-const specificInsurances = ref([])
+const specificProducts = ref([])
 
 // 表单数据
 const formData = reactive({
@@ -381,7 +381,7 @@ const formRules = computed(() => {
       { required: true, message: '请选择险种分类', trigger: 'change' }
     ],
     specificInsuranceId: [
-      { required: true, message: '请选择险种名称', trigger: 'change' }
+      { required: true, message: '请选择产品种类', trigger: 'change' }
     ],
     clientType: [
       { required: true, message: '请选择客户类型', trigger: 'change' }
@@ -478,7 +478,7 @@ const loadBusinessData = async () => {
     
     // 加载险种详情
     if (formData.insuranceTypeId) {
-      await loadSpecificInsurances(formData.insuranceTypeId)
+      await loadSpecificProducts(formData.insuranceTypeId)
     }
     
   } catch (error) {
@@ -519,13 +519,13 @@ const loadInsuranceTypes = async () => {
   }
 }
 
-// 加载具体险种
-const loadSpecificInsurances = async (typeId) => {
+// 加载产品种类
+const loadSpecificProducts = async (typeId) => {
   try {
     const response = await insuranceService.getInsurancesByCategory(typeId)
-    specificInsurances.value = response.data
+    specificProducts.value = response.data
   } catch (error) {
-    console.error('加载具体险种失败:', error)
+    console.error('加载产品种类失败:', error)
   }
 }
 
@@ -569,15 +569,15 @@ const handleClientTypeChange = () => {
 // 险种分类变化处理
 const onInsuranceTypeChange = () => {
   formData.specificInsuranceId = ''
-  specificInsurances.value = []
+  specificProducts.value = []
   if (formData.insuranceTypeId) {
-    loadSpecificInsurances(formData.insuranceTypeId)
+    loadSpecificProducts(formData.insuranceTypeId)
   }
 }
 
-// 具体险种变化处理
-const onSpecificInsuranceChange = () => {
-  // 可以在这里添加险种变化的其他处理逻辑
+// 产品种类变化处理
+const onProductTypeChange = () => {
+  // 可以在这里添加产品种类变化的其他处理逻辑
 }
 
 // 表单提交

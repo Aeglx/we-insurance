@@ -83,20 +83,20 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="险种名称" prop="specificInsuranceId" required>
+              <el-form-item label="产品种类" prop="specificInsuranceId" required>
                 <el-select
                   v-model="formData.specificInsuranceId"
-                  placeholder="请选择险种名称"
+                  placeholder="请选择产品种类"
                   class="w-full"
                   filterable
                   :disabled="!formData.insuranceTypeId"
-                  @change="onSpecificInsuranceChange"
+                  @change="onProductTypeChange"
                 >
                   <el-option
-                    v-for="insurance in specificInsurances"
-                    :key="insurance.id"
-                    :label="insurance.name"
-                    :value="insurance.id"
+                    v-for="product in specificProducts"
+                    :key="product.id"
+                    :label="product.name"
+                    :value="product.id"
                   ></el-option>
                 </el-select>
               </el-form-item>
@@ -284,7 +284,7 @@ const formRules = reactive({
   agentId: [{ required: true, message: '请选择代理人', trigger: 'change' }],
   underwriterId: [{ required: true, message: '请选择出单员', trigger: 'change' }],
   insuranceTypeId: [{ required: true, message: '请选择险种分类', trigger: 'change' }],
-  specificInsuranceId: [{ required: true, message: '请选择险种名称', trigger: 'change' }],
+  specificInsuranceId: [{ required: true, message: '请选择产品种类', trigger: 'change' }],
   clientType: [{ required: true, message: '请选择客户类型', trigger: 'change' }],
   clientName: [
     {
@@ -342,8 +342,8 @@ const underwriters = ref([])
 
 // 险种分类数据
 const insuranceTypes = ref([])
-// 险种名称数据
-const specificInsurances = ref([])
+// 产品种类数据
+const specificProducts = ref([])
 
 // 加载状态
 const loading = ref(false)
@@ -488,47 +488,47 @@ const handleAddAgent = async () => {
 
 // 险种分类选择变化
 const onInsuranceTypeChange = async (typeId) => {
-  // 重置险种名称
+  // 重置产品种类
   formData.specificInsuranceId = ''
-  specificInsurances.value = []
+  specificProducts.value = []
   
-  // 根据险种分类加载险种名称
+  // 根据险种分类加载产品种类
   if (typeId) {
-    await loadSpecificInsurances(typeId)
+    await loadSpecificProducts(typeId)
   }
 }
 
-// 险种名称选择变化
-const onSpecificInsuranceChange = (insuranceId) => {
-  if (insuranceId) {
-    // 获取选中的险种信息
-    const selectedInsurance = specificInsurances.value.find(ins => ins.id === insuranceId)
-    if (selectedInsurance) {
-      console.log('Selected Insurance:', selectedInsurance)
-      console.log('Insurance Name:', selectedInsurance.name)
-      console.log('Insurance Category:', selectedInsurance.categoryName)
+// 产品种类选择变化
+const onProductTypeChange = (productId) => {
+  if (productId) {
+    // 获取选中的产品信息
+    const selectedProduct = specificProducts.value.find(prod => prod.id === productId)
+    if (selectedProduct) {
+      console.log('Selected Product:', selectedProduct)
+      console.log('Product Name:', selectedProduct.name)
+      console.log('Product Category:', selectedProduct.categoryName)
     }
   }
 }
 
-// 加载险种名称
-const loadSpecificInsurances = async (typeId) => {
+// 加载产品种类
+const loadSpecificProducts = async (typeId) => {
   try {
     // 使用真实API调用获取数据
     const response = await insuranceService.getInsuranceByCategory(typeId)
     
     if (response.code === 200) {
-      specificInsurances.value = response.data || []
-      console.log('Loaded Specific Insurances:', specificInsurances.value)
+      specificProducts.value = response.data || []
+      console.log('Loaded Specific Products:', specificProducts.value)
     } else {
-      ElMessage.error(response.message || '加载险种名称数据失败')
+      ElMessage.error(response.message || '加载产品种类数据失败')
     }
   } catch (error) {
-    console.error('加载险种名称数据失败:', error)
-    ElMessage.error('加载险种名称数据失败，请稍后重试')
+    console.error('加载产品种类数据失败:', error)
+    ElMessage.error('加载产品种类数据失败，请稍后重试')
     
     // 如果API调用失败，使用默认数据
-    specificInsurances.value = [
+    specificProducts.value = [
       { id: 1, name: '个人意外险', categoryName: '个人意外险', typeId: 1 },
       { id: 2, name: '团体意外险', categoryName: '团体意外险', typeId: 2 },
       { id: 3, name: '学平险', categoryName: '学平险', typeId: 1 },
@@ -546,7 +546,7 @@ const loadSpecificInsurances = async (typeId) => {
       { id: 15, name: '超赔险', categoryName: '超赔险', typeId: 5 },
       { id: 16, name: '驾乘险', categoryName: '驾乘险', typeId: 5 },
       { id: 17, name: '随车雇主', categoryName: '随车雇主', typeId: 5 }
-    ].filter(insurance => insurance.typeId === parseInt(typeId))
+    ].filter(product => product.typeId === parseInt(typeId))
   }
 }
 
@@ -580,8 +580,8 @@ const resetForm = () => {
   if (formRef.value) {
     formRef.value.resetFields()
   }
-  // 重置险种名称
-  specificInsurances.value = []
+  // 重置产品种类
+  specificProducts.value = []
   // 设置默认成交状态
   formData.dealStatus = 'pending' // 跟进中
   // 设置默认客户类型

@@ -12,9 +12,9 @@
               <p class="text-gray-500 text-sm">今日询价</p>
             </div>
             <h3 class="text-3xl font-bold text-blue-500">{{ statistics.todayInquiryCount }}</h3>
-            <div class="text-success mt-2 flex items-center">
-              <i class="fas fa-arrow-up mr-1"></i>
-              <span class="text-sm">12% 较昨日</span>
+            <div class="mt-2 flex items-center" :class="statistics.todayInquiryGrowth >= 0 ? 'text-success' : 'text-danger'">
+              <i :class="statistics.todayInquiryGrowth >= 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down'" class="mr-1"></i>
+              <span class="text-sm">{{ Math.abs(statistics.todayInquiryGrowth) }}% 较昨日</span>
             </div>
           </div>
         </div>
@@ -28,9 +28,9 @@
               <p class="text-gray-500 text-sm">今日成交</p>
             </div>
             <h3 class="text-3xl font-bold text-green-500">{{ statistics.todayDealCount }}</h3>
-            <div class="text-success mt-2 flex items-center">
-              <i class="fas fa-arrow-up mr-1"></i>
-              <span class="text-sm">8% 较昨日</span>
+            <div class="mt-2 flex items-center" :class="statistics.todayDealGrowth >= 0 ? 'text-success' : 'text-danger'">
+              <i :class="statistics.todayDealGrowth >= 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down'" class="mr-1"></i>
+              <span class="text-sm">{{ Math.abs(statistics.todayDealGrowth) }}% 较昨日</span>
             </div>
           </div>
         </div>
@@ -44,9 +44,9 @@
               <p class="text-gray-500 text-sm">本月业绩</p>
             </div>
             <h3 class="text-3xl font-bold text-purple-500">{{ formatCurrency(statistics.monthlyPerformance) }}</h3>
-            <div class="text-danger mt-2 flex items-center">
-              <i class="fas fa-arrow-down mr-1"></i>
-              <span class="text-sm">3% 较上月</span>
+            <div class="mt-2 flex items-center" :class="statistics.monthlyPerformanceGrowth >= 0 ? 'text-success' : 'text-danger'">
+              <i :class="statistics.monthlyPerformanceGrowth >= 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down'" class="mr-1"></i>
+              <span class="text-sm">{{ Math.abs(statistics.monthlyPerformanceGrowth) }}% 较上月</span>
             </div>
           </div>
         </div>
@@ -166,38 +166,13 @@ const statistics = ref({
   monthlyPerformanceGrowth: 0
 })
 
-// 统计数据保持默认值，不调用API
+// 图表数据
+const distributionData = ref([])
+const dealRateData = ref([])
+const trendData = ref([])
 
 // 最近业务数据
-const recentBusiness = ref([
-  {
-    id: 1,
-    agentName: '张三',
-    insuranceName: '个人意外险',
-    customerName: '李明',
-    amount: 2500,
-    status: '已成交',
-    date: '2025-07-20'
-  },
-  {
-    id: 2,
-    agentName: '王五',
-    insuranceName: '团体意外险',
-    customerName: 'ABC科技有限公司',
-    amount: 15000,
-    status: '跟进中',
-    date: '2025-07-19'
-  },
-  {
-    id: 3,
-    agentName: '李四',
-    insuranceName: '学平险',
-    customerName: '希望小学',
-    amount: 8000,
-    status: '已成交',
-    date: '2025-07-18'
-  }
-])
+const recentBusiness = ref([])
 
 // 用户信息
 const userInfo = computed(() => {
@@ -207,46 +182,88 @@ const userInfo = computed(() => {
 
 // 初始化数据
 const initData = async () => {
-  await loadRecentBusiness()
+  await Promise.all([
+    loadStatistics(),
+    loadDistributionData(),
+    loadDealRateData(),
+    loadRecentBusiness(),
+    loadTrendData()
+  ])
   initCharts()
+}
+
+// 加载统计数据
+const loadStatistics = async () => {
+  try {
+    const response = await businessService.getDashboardOverview()
+    if (response && response.data) {
+      statistics.value = {
+        todayInquiryCount: response.data.todayInquiryCount || 0,
+        todayDealCount: response.data.todayDealCount || 0,
+        monthlyPerformance: response.data.monthlyPerformance || 0,
+        todayInquiryGrowth: response.data.todayInquiryGrowth || 0,
+        todayDealGrowth: response.data.todayDealGrowth || 0,
+        monthlyPerformanceGrowth: response.data.monthlyPerformanceGrowth || 0
+      }
+    }
+  } catch (error) {
+    console.error('获取仪表盘概览数据失败:', error)
+  }
+}
+
+// 加载险种分布数据
+const loadDistributionData = async () => {
+  try {
+    const response = await businessService.getInsuranceTypeDistribution()
+    if (response && response.data) {
+      distributionData.value = response.data
+    }
+  } catch (error) {
+    console.error('获取险种分布数据失败:', error)
+  }
+}
+
+// 加载成交率统计数据
+const loadDealRateData = async () => {
+  try {
+    const response = await businessService.getDealRateStatistics()
+    if (response && response.data) {
+      dealRateData.value = response.data
+    }
+  } catch (error) {
+    console.error('获取成交率统计数据失败:', error)
+  }
 }
 
 // 加载最近业务
 const loadRecentBusiness = async () => {
   try {
-    // 这里可以添加从API获取最近业务的逻辑
-    // 目前保持模拟数据，因为API可能还没实现
-    recentBusiness.value = [
-      {
-        id: 1,
-        agentName: '张三',
-        insuranceName: '个人意外险',
-        customerName: '李明',
-        amount: 2500,
-        status: '已成交',
-        date: '2025-07-20'
-      },
-      {
-        id: 2,
-        agentName: '王五',
-        insuranceName: '团体意外险',
-        customerName: 'ABC科技有限公司',
-        amount: 15000,
-        status: '跟进中',
-        date: '2025-07-19'
-      },
-      {
-        id: 3,
-        agentName: '李四',
-        insuranceName: '学平险',
-        customerName: '希望小学',
-        amount: 8000,
-        status: '已成交',
-        date: '2025-07-18'
-      }
-    ]
+    const response = await businessService.getRecentBusiness()
+    if (response && response.data) {
+      recentBusiness.value = response.data.map(item => ({
+        id: item.id,
+        agentName: item.agent || '未知代理人',
+        insuranceName: item.insurance_type || '未知险种',
+        customerName: item.customer || '未知客户',
+        amount: item.amount || 0,
+        status: item.status === 'success' ? '已成交' : item.status === 'pending' ? '跟进中' : '已拒绝',
+        date: item.date
+      }))
+    }
   } catch (error) {
     console.error('获取最近业务失败:', error)
+  }
+}
+
+// 加载业务趋势数据
+const loadTrendData = async () => {
+  try {
+    const response = await businessService.getBusinessTrend({ range: timeRange.value })
+    if (response && response.data) {
+      trendData.value = response.data
+    }
+  } catch (error) {
+    console.error('获取业务趋势数据失败:', error)
   }
 }
 
@@ -267,10 +284,22 @@ const initTrendChart = () => {
     trendChartInstance.value.destroy()
   }
   
-  // 生成模拟数据 - 本周数据（周一到周日）
-  const labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-  const inquiryData = [18, 25, 22, 29, 27, 15, 10]
-  const dealData = [8, 12, 10, 15, 13, 7, 5]
+  // 准备图表数据
+  let labels = []
+  let inquiryData = []
+  let dealData = []
+  
+  if (trendData.value && trendData.value.length > 0) {
+    // 使用API返回的真实数据
+    labels = trendData.value.map(item => dayjs(item.date).format('MM-DD'))
+    inquiryData = trendData.value.map(item => item.inquiry_count || 0)
+    dealData = trendData.value.map(item => item.deal_count || 0)
+  } else {
+    // 使用默认模拟数据
+    labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+    inquiryData = [18, 25, 22, 29, 27, 15, 10]
+    dealData = [8, 12, 10, 15, 13, 7, 5]
+  }
   
   try {
     // 创建图表
@@ -375,12 +404,23 @@ const initDistributionChart = () => {
     distributionChartInstance.value.destroy()
   }
   
-  // 模拟数据 - 险种分布
-  const labels = ['个人意外险', '团体意外险', '学平险', '建工险', '燃气险', '雇主险']
-  const data = [30, 25, 20, 10, 10, 5]
+  // 准备图表数据
+  let labels = []
+  let data = []
   const colors = [
-    '#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6B7280'
+    '#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6B7280',
+    '#EC4899', '#14B8A6', '#F97316', '#84CC16', '#EAB308', '#0EA5E9'
   ]
+  
+  if (distributionData.value && distributionData.value.length > 0) {
+    // 使用API返回的真实数据
+    labels = distributionData.value.map(item => item.name)
+    data = distributionData.value.map(item => item.value)
+  } else {
+    // 使用默认模拟数据
+    labels = ['个人意外险', '团体意外险', '学平险', '建工险', '燃气险', '雇主险']
+    data = [30, 25, 20, 10, 10, 5]
+  }
   
   try {
     // 创建图表
@@ -390,7 +430,7 @@ const initDistributionChart = () => {
         labels,
         datasets: [{
           data,
-          backgroundColor: colors,
+          backgroundColor: colors.slice(0, labels.length),
           borderWidth: 2,
           borderColor: '#fff'
         }]
@@ -435,9 +475,19 @@ const initConversionRateChart = () => {
     conversionRateChartInstance.value.destroy()
   }
   
-  // 模拟数据 - 成交率统计
-  const labels = ['个人意外险', '团体意外险', '学平险', '建工险', '燃气险', '雇主险']
-  const data = [50, 55, 60, 40, 35, 50]
+  // 准备图表数据
+  let labels = []
+  let data = []
+  
+  if (dealRateData.value && dealRateData.value.length > 0) {
+    // 使用API返回的真实数据
+    labels = dealRateData.value.map(item => item.name)
+    data = dealRateData.value.map(item => Math.round((item.dealRate || 0) * 100)) // 转换为百分比
+  } else {
+    // 使用默认模拟数据
+    labels = ['个人意外险', '团体意外险', '学平险', '建工险', '燃气险', '雇主险']
+    data = [50, 55, 60, 40, 35, 50]
+  }
   
   try {
     // 创建图表
@@ -464,7 +514,12 @@ const initConversionRateChart = () => {
             backgroundColor: 'rgba(0, 0, 0, 0.8)',
             padding: 12,
             borderRadius: 8,
-            boxPadding: 6
+            boxPadding: 6,
+            callbacks: {
+              label: function(context) {
+                return '成交率: ' + context.parsed.y + '%'
+              }
+            }
           }
         },
         scales: {
@@ -475,7 +530,9 @@ const initConversionRateChart = () => {
             ticks: {
               font: {
                 size: 11
-              }
+              },
+              maxRotation: 45,
+              minRotation: 45
             }
           },
           y: {
@@ -503,14 +560,20 @@ const initConversionRateChart = () => {
 
 // 刷新数据
 const refreshData = async () => {
-  await loadRecentBusiness()
+  await Promise.all([
+    loadStatistics(),
+    loadDistributionData(),
+    loadDealRateData(),
+    loadRecentBusiness(),
+    loadTrendData()
+  ])
   initCharts()
 }
 
 // 更改时间范围
-const changeTimeRange = (range) => {
+const changeTimeRange = async (range) => {
   timeRange.value = range
-  // 根据时间范围重新生成图表数据
+  await loadTrendData()
   initTrendChart()
 }
 
@@ -538,9 +601,36 @@ const formatCurrency = (amount) => {
   }).format(amount)
 }
 
+// 定时刷新相关变量
+const refreshInterval = ref(null)
+const REFRESH_INTERVAL_TIME = 10000 // 10秒
+
+// 启动定时刷新
+const startAutoRefresh = () => {
+  // 清除现有的定时器
+  if (refreshInterval.value) {
+    clearInterval(refreshInterval.value)
+  }
+  
+  // 设置新的定时器，每10秒刷新一次数据
+  refreshInterval.value = setInterval(() => {
+    refreshData()
+  }, REFRESH_INTERVAL_TIME)
+}
+
+// 停止定时刷新
+const stopAutoRefresh = () => {
+  if (refreshInterval.value) {
+    clearInterval(refreshInterval.value)
+    refreshInterval.value = null
+  }
+}
+
 // 生命周期钩子
 onMounted(() => {
   initData()
+  // 启动定时刷新
+  startAutoRefresh()
 })
 
 onUnmounted(() => {
@@ -554,5 +644,8 @@ onUnmounted(() => {
   if (conversionRateChartInstance.value) {
     conversionRateChartInstance.value.destroy()
   }
+  
+  // 停止定时刷新
+  stopAutoRefresh()
 })
 </script>

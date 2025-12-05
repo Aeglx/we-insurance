@@ -48,6 +48,16 @@ export const API_PATHS = {
   },
   
   // 险种相关
+  // 仪表盘相关
+  DASHBOARD: {
+    OVERVIEW: '/dashboard/overview',
+    INSURANCE_TYPE_DIST: '/dashboard/insurance-type-dist',
+    DEAL_RATE: '/dashboard/deal-rate',
+    RECENT_BUSINESS: '/dashboard/recent-business',
+    TREND: '/dashboard/trend'
+  },
+  
+  // 险种相关
   INSURANCE: {
     LIST: '/insurance/list',
     DETAIL: '/insurance/detail/',

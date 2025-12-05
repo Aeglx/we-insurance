@@ -59,9 +59,9 @@
             </select>
           </div>
           
-          <!-- 险种名称 -->
+          <!-- 产品种类 -->
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">险种名称</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1">产品种类</label>
             <select 
               v-model="filters.specificInsuranceId" 
               class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
@@ -191,7 +191,7 @@
                   险种分类
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  险种名称
+                  产品种类
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   客户名称
@@ -228,7 +228,7 @@
                   {{ getInsuranceCategoryName(item.insuranceTypeId) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {{ item.insuranceName || getSpecificInsuranceName(item.insuranceId) }}
+                  {{ item.insuranceName || getSpecificProductTypeName(item.insuranceId) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {{ item.insuredName || item.customer_name }}
@@ -597,8 +597,8 @@ const deleteItem = async (id) => {
   })
 }
 
-// 获取险种名称
-const getInsuranceName = (id) => {
+// 获取产品种类名称
+const getProductTypeName = (id) => {
   const insurance = insuranceList.value.find(item => item.id === id)
   return insurance ? insurance.name : ''
 }
@@ -609,8 +609,8 @@ const getInsuranceCategoryName = (id) => {
   return category ? category.name : ''
 }
 
-// 获取具体险种名称
-const getSpecificInsuranceName = (id) => {
+// 获取产品种类名称
+const getSpecificProductTypeName = (id) => {
   const insurance = insuranceList.value.find(item => item.id === id)
   return insurance ? insurance.name : ''
 }

@@ -52,7 +52,7 @@
                   type="text" 
                   v-model="insuranceSearchKeyword" 
                   class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="搜索险种名称或代码"
+                  placeholder="搜索产品种类或代码"
                 >
                 <button 
                   @click="searchInsurance" 
@@ -85,7 +85,7 @@
               <thead class="bg-gray-50">
                 <tr>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    险种名称
+                    产品种类
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     险种代码
@@ -385,12 +385,12 @@
             <!-- 险种表单 -->
             <div v-if="modalType === 'insurance'" class="space-y-3">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">险种名称</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">产品种类</label>
                 <input 
                   v-model="formData.insurance.name" 
                   type="text" 
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="请输入险种名称"
+                  placeholder="请输入产品种类"
                 >
                 <p v-if="formErrors.name" class="text-sm text-error mt-1">{{ formErrors.name }}</p>
               </div>
