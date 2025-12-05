@@ -114,33 +114,10 @@ app.post('/api/agent/batch-import', async (req, res) => {
   }
 })
 
-// 统计API路由 - 直接在app实例上定义
-app.get('/statistics', (req, res) => {
-  try {
-    console.log('收到统计数据请求:', req.query)
-    // 暂时返回模拟数据
-    const statistics = {
-      totalAmount: 100000,
-      totalPolicies: 50,
-      dailyTrend: [10, 15, 20, 25, 30, 35, 40],
-      monthlyTrend: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]
-    }
-    console.log('统计数据计算结果:', statistics)
-    
-    res.json({ 
-      code: 200,
-      message: '获取业务统计数据成功',
-      data: statistics 
-    })
-  } catch (error) {
-    console.error('获取业务统计数据失败:', error)
-    res.status(500).json({ 
-      code: 500,
-      message: '获取业务统计数据失败',
-      error: error.message 
-    })
-  }
-})
+// 旧的统计API路由已被移除，建议使用/api/business/statistics接口
+// app.get('/statistics', (req, res) => {
+//   ...
+// })
 
 // 数据库配置
 const dbConfig = {
@@ -1875,8 +1852,13 @@ async function startServer() {
     app.get('/api/business/statistics', (req, res) => {
       try {
         console.log('收到统计数据请求:', req.query)
-        // 返回前端期望的数据结构
+        
+        // 根据请求参数获取不同的统计数据
+        const { type = 'dashboard' } = req.query
+        
+        // 返回完整的统计数据，包括仪表盘和统计分析页面所需的所有数据
         const statistics = {
+          // 仪表盘数据
           todayInquiryCount: 12,
           todayDealCount: 5,
           monthlyPerformance: 250000,
@@ -1884,8 +1866,44 @@ async function startServer() {
           todayDealGrowth: 8,
           monthlyPerformanceGrowth: -3,
           dailyTrend: [10, 15, 20, 25, 30, 35, 40],
-          monthlyTrend: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]
+          monthlyTrend: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200],
+          
+          // 统计分析页面数据
+          inquiryCount: 156,
+          dealCount: 68,
+          conversionRate: 43.6,
+          totalAmount: 458200,
+          inquiryGrowth: 12.5,
+          dealGrowth: 8.3,
+          conversionRateGrowth: -2.1,
+          totalAmountGrowth: 15.2,
+          
+          // 按出单员统计
+          underwriterStatistics: [
+            { name: '出单员A', inquiryCount: 65, dealCount: 28 },
+            { name: '出单员B', inquiryCount: 58, dealCount: 35 },
+            { name: '出单员C', inquiryCount: 80, dealCount: 42 }
+          ],
+          
+          // 按险种统计
+          insuranceStatistics: [
+            { name: '个人意外险', inquiryCount: 45, dealCount: 20 },
+            { name: '团体意外险', inquiryCount: 40, dealCount: 20 },
+            { name: '学平险', inquiryCount: 28, dealCount: 18 },
+            { name: '建工险', inquiryCount: 22, dealCount: 10 },
+            { name: '燃气险', inquiryCount: 16, dealCount: 8 },
+            { name: '雇主险', inquiryCount: 12, dealCount: 8 }
+          ],
+          
+          // 时间趋势数据
+          timeTrendData: {
+            labels: ['1日', '2日', '3日', '4日', '5日', '6日', '7日', '8日', '9日', '10日', '11日', '12日', '13日', '14日', '15日', '16日', '17日', '18日', '19日', '20日', '21日', '22日', '23日', '24日', '25日', '26日', '27日', '28日', '29日', '30日'],
+            inquiryData: Array(30).fill().map(() => Math.floor(Math.random() * 10) + 15),
+            dealData: Array(30).fill().map(() => Math.floor(Math.random() * 5) + 5),
+            conversionData: Array(30).fill().map(() => Math.floor(Math.random() * 10) + 35)
+          }
         }
+        
         console.log('统计数据计算结果:', statistics)
         
         res.json({ 
