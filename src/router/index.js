@@ -4,6 +4,7 @@ import Dashboard from '../pages/Dashboard.vue'
 import BusinessRegister from '../pages/BusinessRegister.vue'
 import BusinessDetail from '../pages/BusinessDetail.vue'
 import BusinessEdit from '../pages/BusinessEdit.vue'
+import BusinessList from '../pages/BusinessList.vue'
 import Statistics from '../pages/Statistics.vue'
 import DataQuery from '../pages/DataQuery.vue'
 import Management from '../pages/Management.vue'
@@ -21,6 +22,13 @@ const routes = [
     path: '/dashboard',
     name: 'Dashboard',
     component: Dashboard,
+    meta: { requiresAuth: true },
+    layout: MainLayout
+  },
+  {
+    path: '/business/list',
+    name: 'BusinessList',
+    component: BusinessList,
     meta: { requiresAuth: true },
     layout: MainLayout
   },

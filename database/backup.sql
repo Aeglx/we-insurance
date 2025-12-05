@@ -42,8 +42,6 @@ CREATE TABLE `business` (
   CONSTRAINT `business_ibfk_254` FOREIGN KEY (`specific_insurance_id`) REFERENCES `insurance` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `business` (`id`, `agent_id`, `underwriter_id`, `insurance_id`, `customer_name`, `customer_phone`, `customer_email`, `policy_number`, `premium_amount`, `coverage_amount`, `start_date`, `end_date`, `status`, `inquiry_date`, `approval_date`, `remarks`, `created_at`, `updated_at`, `deleted_at`, `client_type`, `personal_name`, `company_name`, `plate_number`, `insurance_type_id`, `specific_insurance_id`, `inquiry_amount`, `deal_status`, `reminder_time`, `deal_time`, `follow_up_remark`) VALUES (5, 2, 5, 24, '阿松大', '13800138000', '', '', '0.00', '0.00', '2025-12-03 19:10:51', '2026-12-03 19:10:51', 'pending', '2025-12-03 19:10:51', NULL, '', '2025-12-03 19:10:51', '2025-12-03 19:10:51', NULL, 'personal', '', '', '', NULL, NULL, NULL, 'pending', NULL, NULL, NULL), (10, 2, 5, 24, '阿松大等等', '13800138000', '', '', '300.00', '300.00', '2025-12-03 19:35:03', '2026-12-03 19:35:03', 'pending', '2025-12-03 19:35:03', NULL, '', '2025-12-03 19:35:03', '2025-12-03 23:38:26', NULL, 'personal', '阿松大等等', '', '', 1, 24, '300.00', 'success', '2025-12-06 16:00:00', NULL, '');
-
 CREATE TABLE `business_level` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -340,5 +338,5 @@ CREATE TABLE `user` (
   UNIQUE KEY `username_63` (`username`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `user` (`id`, `username`, `password`, `name`, `role`, `email`, `phone`, `department`, `status`, `created_at`, `updated_at`, `deleted_at`) VALUES (1, 'admin', 'admin123', '系统管理员', 'admin', 'admin@example.com', '13800138000', NULL, 1, '2025-12-02 21:49:13', '2025-12-02 21:49:13', NULL), (2, '5F2709182', 'agent123', '张三', 'agent', NULL, '13731461536', '渠道', 1, '2025-12-03 17:11:49', '2025-12-03 17:11:49', NULL), (3, '674752089', 'agent123', '李四', 'agent', NULL, '13731461539', '直客', 1, '2025-12-03 17:12:32', '2025-12-03 17:12:32', NULL), (5, 'shi_xiongfeng', 'underwriter123', '史雄风', 'underwriter', 'shi@example.com', '13800138001', NULL, 1, '2025-12-04 02:24:46', '2025-12-04 02:24:46', NULL), (6, 'hao_ming', 'underwriter123', '郝明', 'underwriter', 'hao@example.com', '13800138002', NULL, 1, '2025-12-04 02:24:46', '2025-12-04 02:24:46', NULL);
+INSERT INTO `user` (`id`, `username`, `password`, `name`, `role`, `email`, `phone`, `department`, `status`, `created_at`, `updated_at`, `deleted_at`) VALUES (1, 'admin', 'admin123', '系统管理员', 'admin', 'admin@example.com', '13800138000', NULL, 1, '2025-12-02 21:49:13', '2025-12-02 21:49:13', NULL), (5, 'shi_xiongfeng', 'underwriter123', '史雄风', 'underwriter', 'shi@example.com', '13800138001', NULL, 1, '2025-12-04 02:24:46', '2025-12-04 02:24:46', NULL), (6, 'hao_ming', 'underwriter123', '郝明', 'underwriter', 'hao@example.com', '13800138002', NULL, 1, '2025-12-04 02:24:46', '2025-12-04 02:24:46', NULL);
 

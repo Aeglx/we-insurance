@@ -771,27 +771,42 @@ app.put('/api/agent/update/:id', async (req, res) => {
 // 删除代理人接口
 app.delete('/api/agent/delete/:id', async (req, res) => {
   try {
-    const { id } = req.params
+    const { id } = req.params;
+    
+    // 验证ID是否有效
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ error: '无效的代理人ID' });
+    }
     
     // 查找代理人
     const agent = await db.User.findOne({
       where: {
-        id,
+        id: parseInt(id),
         role: 'agent'
       }
-    })
+    });
     
     if (!agent) {
-      return res.status(404).json({ error: '代理人不存在' })
+      return res.status(404).json({ error: '代理人不存在' });
+    }
+    
+    // 检查是否有关联的业务记录
+    const relatedBusiness = await db.Business.count({
+      where: {
+        agent_id: agent.id
+      }
+    });
+    
+    if (relatedBusiness > 0) {
+      return res.status(400).json({ error: '该代理人存在关联的业务记录，无法删除' });
     }
     
     // 删除代理人
-    await agent.destroy()
-    
-    res.json({ success: true })
+    await agent.destroy();
+    res.json({ success: true });
   } catch (error) {
-    console.error('删除代理人失败:', error)
-    res.status(500).json({ error: '删除代理人失败' })
+    console.error('删除代理人失败:', error);
+    res.status(500).json({ error: '删除代理人失败' });
   }
 })
 

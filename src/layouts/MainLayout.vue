@@ -28,6 +28,14 @@
             <span>业务登记</span>
           </router-link>
           <router-link 
+            to="/business/list" 
+            class="inline-flex items-center px-4 py-2 text-sm font-medium transition-colors"
+            :class="[ $route.path === '/business/list' ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100', 'rounded-md' ]"
+          >
+            <i class="fas fa-list mr-1"></i>
+            <span>业务列表</span>
+          </router-link>
+          <router-link 
             to="/statistics" 
             class="inline-flex items-center px-4 py-2 text-sm font-medium transition-colors"
             :class="[ $route.path === '/statistics' ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100', 'rounded-md' ]"

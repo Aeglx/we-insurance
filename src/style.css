@@ -13,7 +13,13 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
   background-color: #f5f7fa;
   color: #333;
+  font-size: 12px;
   line-height: 1.6;
+}
+
+/* 确保所有元素默认使用12px字体大小 */
+* {
+  font-size: 12px;
 }
 
 /* 自定义工具类 */
