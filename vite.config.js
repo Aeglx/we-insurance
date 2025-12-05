@@ -11,10 +11,17 @@ export default defineConfig({
     }
   },
   server: {
+    host: '0.0.0.0', // 对外暴露配置
     port: 8000, // 强制设置前端端口为8000
+    allowedHosts: [
+      'raoke.cn',    // 放行域名
+      '.raoke.cn',   // 放行所有子域名
+      '127.0.0.1',   // 保留本地访问
+      'localhost'    // 保留本地访问
+    ],
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         secure: false
       }

@@ -5,6 +5,7 @@ import bodyParser from 'body-parser'
 import dotenv from 'dotenv'
 import mysql2 from 'mysql2/promise'
 import { sequelize, Sequelize } from './src/database/connection.js'
+import path from 'path'
 import databaseService from './src/services/databaseService.js'
 import backupService from './src/services/backupService.js'
 import { User, Insurance, Business, InsuranceCategory, BusinessLevel, BusinessModel } from './src/database/models/index.js'
@@ -19,9 +20,28 @@ dotenv.config()
 const app = express()
 
 // 配置中间件
-app.use(cors())
+// 手动添加CORS头以解决跨域问题
+app.use((req, res, next) => {
+  // 设置允许所有来源
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+  
+  // 处理OPTIONS预检请求
+  if (req.method === 'OPTIONS') {
+    res.status(200).end()
+    return
+  }
+  
+  next()
+})
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
+
+// 配置静态文件服务
+const __dirname = path.dirname(new URL(import.meta.url).pathname)
+app.use(express.static(path.join(__dirname, 'dist')))
 
 // 简单测试路由 - 直接在app实例上定义
 app.get('/test', (req, res) => {
@@ -1678,7 +1698,7 @@ app.get('/api/business/export', async (req, res) => {
 
 
 // 启动服务器
-const PORT = 3000 // 强制设置后端端口为3000
+const PORT = process.env.PORT || 3000 // 使用环境变量或默认3000端口
 
 // 先初始化数据库，再启动服务器
 async function startServer() {
@@ -1691,9 +1711,51 @@ async function startServer() {
       res.status(200).json({ message: 'Test route works!' })
     })
     
-
+    // 用户登录接口
+    app.post('/api/user/login', async (req, res) => {
+      try {
+        const { username, password } = req.body
+        
+        // 查找用户
+        const user = await db.User.findOne({
+          where: { username }
+        })
+        
+        if (!user) {
+          return res.status(401).json({ code: 401, message: '用户名或密码错误' })
+        }
+        
+        // 验证密码（在实际项目中应该使用加密密码）
+        if (user.password !== password) {
+          return res.status(401).json({ code: 401, message: '用户名或密码错误' })
+        }
+        
+        // 生成token（简化版，实际项目中应该使用JWT）
+        const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        
+        // 返回用户信息和token
+        res.json({
+          code: 200,
+          message: '登录成功',
+          data: {
+            token,
+            userInfo: {
+              id: user.id,
+              username: user.username,
+              name: user.name,
+              role: user.role,
+              email: user.email,
+              phone: user.phone
+            }
+          }
+        })
+      } catch (error) {
+        console.error('用户登录失败:', error)
+        res.status(500).json({ code: 500, message: '登录失败' })
+      }
+    })
     
-    app.listen(PORT, () => {
+    app.listen(PORT, process.env.HOST || '0.0.0.0', () => {
       console.log(`后端服务器正在运行，端口: ${PORT}`)
     })
   } catch (error) {
@@ -1986,6 +2048,23 @@ app.get('/api/dashboard/trend', async (req, res) => {
     console.error('获取业务趋势数据失败:', error)
     res.json({ code: 500, msg: '获取数据失败', data: [] })
   }
+})
+
+// 处理所有其他请求，返回index.html（SPA路由支持）
+app.use((req, res, next) => {
+  // 检查是否是API请求
+  if (req.url.startsWith('/api')) {
+    next()
+    return
+  }
+  // 检查是否是静态文件
+  if (/\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/.test(req.url)) {
+    next()
+    return
+  }
+  // 所有其他请求返回index.html
+  const __dirname = path.dirname(new URL(import.meta.url).pathname)
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'))
 })
 
 // 启动服务器
