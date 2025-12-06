@@ -34,6 +34,9 @@ const Insurance = sequelize.define('insurance', {
     type: Sequelize.BOOLEAN,
     defaultValue: true
   },
+  image: {
+    type: Sequelize.STRING
+  },
   created_at: {
     type: Sequelize.DATE,
     defaultValue: Sequelize.NOW

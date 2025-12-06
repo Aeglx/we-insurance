@@ -6,6 +6,8 @@ import dotenv from 'dotenv'
 import mysql2 from 'mysql2/promise'
 import { sequelize, Sequelize } from './src/database/connection.js'
 import path from 'path'
+import multer from 'multer'
+import fs from 'fs'
 import databaseService from './src/services/databaseService.js'
 import backupService from './src/services/backupService.js'
 import { User, Insurance, Business, InsuranceCategory, BusinessLevel, BusinessModel } from './src/database/models/index.js'
@@ -42,6 +44,47 @@ app.use(bodyParser.urlencoded({ extended: true }))
 // 配置静态文件服务
 const __dirname = path.dirname(new URL(import.meta.url).pathname)
 app.use(express.static(path.join(__dirname, 'dist')))
+
+// 配置图片上传服务
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // 根据业务类型创建子目录
+    const type = req.body.type || 'general'
+    const year = new Date().getFullYear().toString()
+    const month = (new Date().getMonth() + 1).toString().padStart(2, '0')
+    const dir = path.join(__dirname, 'uploads', type, year, month)
+    
+    // 创建目录（如果不存在）
+    fs.mkdirSync(dir, { recursive: true })
+    cb(null, dir)
+  },
+  filename: (req, file, cb) => {
+    // 生成唯一文件名：时间戳 + 随机数 + 文件扩展名
+    const timestamp = Date.now()
+    const random = Math.floor(Math.random() * 10000)
+    const ext = path.extname(file.originalname)
+    cb(null, `${timestamp}_${random}${ext}`)
+  }
+})
+
+// 初始化multer
+const upload = multer({
+  storage,
+  // 限制文件大小（10MB）
+  limits: { fileSize: 10 * 1024 * 1024 },
+  // 验证文件类型
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('只允许上传JPG、PNG、GIF、WEBP格式的图片'))
+    }
+  }
+})
+
+// 配置uploads目录的静态文件服务
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 // 简单测试路由 - 直接在app实例上定义
 app.get('/test', (req, res) => {
@@ -197,6 +240,29 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' })
 })
 
+// 图片上传API接口
+app.post('/api/upload/image', upload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: '未上传图片' })
+    }
+    
+    // 计算相对路径（存储到数据库）
+    const relativePath = req.file.path.replace(__dirname, '').replace(/\\/g, '/')
+    const imageUrl = `/uploads${relativePath.split('/uploads')[1]}`
+    
+    res.json({
+      success: true,
+      imageUrl,
+      fileName: req.file.filename,
+      fileSize: req.file.size,
+      mimeType: req.file.mimetype
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 // 简单测试路由
 app.get('/api/test', (req, res) => {
   console.log('收到测试请求')
@@ -301,9 +367,10 @@ app.get('/api/insurance/detail/:id', async (req, res) => {
 })
 
 // 添加险种
-app.post('/api/insurance/add', async (req, res) => {
+app.post('/api/insurance/add', upload.single('image'), async (req, res) => {
   try {
     const { name, code, category, description, status } = req.body
+    const image = req.file ? req.file.filename : null
     
     // 创建新险种
     const newInsurance = await db.Insurance.create({
@@ -311,7 +378,8 @@ app.post('/api/insurance/add', async (req, res) => {
       code,
       category_id: category,
       description,
-      status: status !== undefined ? status : true
+      status: status !== undefined ? status : true,
+      image
     })
     
     res.json({ id: newInsurance.id, success: true })
@@ -322,10 +390,11 @@ app.post('/api/insurance/add', async (req, res) => {
 })
 
 // 更新险种
-app.put('/api/insurance/update/:id', async (req, res) => {
+app.put('/api/insurance/update/:id', upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params
     const { name, code, category, description, status } = req.body
+    const image = req.file ? req.file.filename : null
     
     // 查找险种
     const insurance = await db.Insurance.findByPk(id)
@@ -340,7 +409,8 @@ app.put('/api/insurance/update/:id', async (req, res) => {
       code,
       category_id: category,
       description,
-      status
+      status,
+      image: image !== null ? image : insurance.image
     })
     
     res.json({ success: true })

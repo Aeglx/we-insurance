@@ -64,7 +64,20 @@ const insuranceService = {
   // 添加险种
   addInsurance: async (data) => {
     try {
-      const response = await api.post('/insurance/add', data)
+      const formData = new FormData()
+      formData.append('name', data.name)
+      formData.append('code', data.code)
+      formData.append('category', data.category)
+      formData.append('description', data.description)
+      formData.append('status', data.status)
+      if (data.image) {
+        formData.append('image', data.image)
+      }
+      const response = await api.post('/insurance/add', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
       return response
     } catch (error) {
       console.error('添加险种失败:', error)
@@ -75,7 +88,20 @@ const insuranceService = {
   // 更新险种
   updateInsurance: async (id, data) => {
     try {
-      const response = await api.put(`/insurance/update/${id}`, data)
+      const formData = new FormData()
+      formData.append('name', data.name)
+      formData.append('code', data.code)
+      formData.append('category', data.category)
+      formData.append('description', data.description)
+      formData.append('status', data.status)
+      if (data.image) {
+        formData.append('image', data.image)
+      }
+      const response = await api.put(`/insurance/update/${id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
       return response
     } catch (error) {
       console.error('更新险种失败:', error)

@@ -521,6 +521,20 @@
                   placeholder="请输入险种描述"
                 ></textarea>
               </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">险种图片</label>
+                <ImageUploader 
+                  @upload-success="(url) => formData.insurance.image = url"
+                  @upload-error="(error) => console.error('图片上传失败:', error)"
+                  max-file-size="5242880"
+                  accept="image/*"
+                  preview-width="150px"
+                  preview-height="150px"
+                />
+                <div v-if="formData.insurance.image" class="mt-2 text-sm text-gray-500">
+                  已上传图片: {{ formData.insurance.image }}
+                </div>
+              </div>
               <div class="flex items-center">
                 <input 
                   v-model="formData.insurance.status" 
@@ -714,6 +728,7 @@
 import { ref, onMounted, inject, computed } from 'vue'
 import insuranceService from '../services/insuranceService'
 import agentService from '../services/agentService'
+import ImageUploader from '../components/common/ImageUploader.vue'
 
 // 导入toast
 const toast = inject('toast')
@@ -1030,7 +1045,8 @@ const addItem = () => {
       code: '',
       category: '',
       description: '',
-      status: true
+      status: true,
+      image: ''
     },
     agent: {
       name: '',
