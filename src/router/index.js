@@ -36,7 +36,7 @@ const routes = [
     path: '/business/register',
     name: 'BusinessRegister',
     component: BusinessRegister,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: false }, // 代理人无需登录即可访问
     layout: MainLayout
   },
   {
@@ -57,7 +57,7 @@ const routes = [
     path: '/management',
     name: 'Management',
     component: Management,
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true }, // 允许出单员访问
     layout: MainLayout
   },
   {
@@ -88,8 +88,16 @@ router.beforeEach((to, from, next) => {
 
   if (to.meta.requiresAuth && !isAuthenticated) {
     next({ name: 'Login' })
-  } else if (to.meta.requiresAdmin && userRole !== 'admin') {
-    next({ name: 'Dashboard' })
+  } else if (isAuthenticated && to.name === 'Dashboard' && userRole !== 'admin') {
+    // 只有管理员可以访问仪表盘页面
+    if (userRole === 'underwriter') {
+      next({ name: 'BusinessList' }) // 出单员重定向到业务列表
+    } else {
+      next() // 其他角色可以继续访问
+    }
+  } else if (isAuthenticated && userRole === 'underwriter' && to.name === 'Statistics') {
+    // 出单员不能访问统计分析页面
+    next({ name: 'BusinessList' }) // 重定向到业务列表页面
   } else {
     next()
   }

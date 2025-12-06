@@ -373,6 +373,45 @@ const initData = async () => {
   ])
   
   resetForm()
+  
+  // 设置当前登录出单员为默认值（在表单重置后执行）
+  setDefaultUnderwriter()
+}
+
+// 设置默认出单员（如果当前登录用户是出单员）
+const setDefaultUnderwriter = () => {
+  try {
+    // 获取当前登录用户信息
+    const userInfoStr = localStorage.getItem('userInfo')
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr)
+      console.log('当前登录用户信息:', userInfo)
+      console.log('出单员列表:', underwriters.value)
+      
+      // 检查当前登录用户是否在出单员列表中（使用多种匹配方式）
+      let currentUnderwriter = null
+      
+      // 首先尝试通过用户名匹配
+      if (userInfo.username) {
+        currentUnderwriter = underwriters.value.find(uw => uw.name === userInfo.username)
+      }
+      
+      // 如果用户名匹配失败，尝试通过姓名匹配
+      if (!currentUnderwriter && userInfo.name) {
+        currentUnderwriter = underwriters.value.find(uw => uw.name === userInfo.name)
+      }
+      
+      // 如果匹配成功，设置为默认值
+      if (currentUnderwriter) {
+        console.log('找到匹配的出单员:', currentUnderwriter)
+        formData.underwriterId = currentUnderwriter.id
+      } else {
+        console.log('未找到匹配的出单员')
+      }
+    }
+  } catch (error) {
+    console.error('设置默认出单员失败:', error)
+  }
 }
 
 // 加载代理人数据

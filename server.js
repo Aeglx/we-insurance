@@ -22,7 +22,7 @@ const app = express()
 // 配置中间件
 // 手动添加CORS头以解决跨域问题
 app.use((req, res, next) => {
-  // 设置允许所有来源
+  // 允许所有源的请求
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
@@ -141,6 +141,22 @@ const initDatabase = async () => {
       })
       console.log('默认管理员用户创建成功！')
       console.log('用户名: admin, 密码: admin123')
+    }
+
+    // 创建测试用户用于权限限制测试
+    const testUserCount = await User.count({ where: { username: 'testuser' } })
+    if (testUserCount === 0) {
+      await User.create({
+        username: 'testuser',
+        password: 'test123', // 在实际项目中应该使用加密密码
+        name: '测试用户',
+        role: 'agent',
+        email: 'test@example.com',
+        phone: '13800138001',
+        status: true
+      })
+      console.log('测试用户创建成功！')
+      console.log('用户名: testuser, 密码: test123')
     }
 
     // 检查是否需要创建默认险种分类
@@ -1698,7 +1714,7 @@ app.get('/api/business/export', async (req, res) => {
 
 
 // 启动服务器
-const PORT = process.env.PORT || 3000 // 使用环境变量或默认3000端口
+const PORT = 3000 // 强制设置后端端口为3000
 
 // 先初始化数据库，再启动服务器
 async function startServer() {
@@ -1755,7 +1771,7 @@ async function startServer() {
       }
     })
     
-    app.listen(PORT, process.env.HOST || '0.0.0.0', () => {
+    app.listen(PORT, () => {
       console.log(`后端服务器正在运行，端口: ${PORT}`)
     })
   } catch (error) {

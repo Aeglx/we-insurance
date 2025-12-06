@@ -11,7 +11,9 @@
         
         <!-- 导航菜单 -->
         <div class="flex items-center space-x-1">
+          <!-- 只有管理员可以看到仪表盘 -->
           <router-link 
+            v-if="isAuthenticated && userInfo.role === 'admin'"
             to="/dashboard" 
             class="inline-flex items-center px-4 py-2 text-sm font-medium transition-colors"
             :class="[ $route.path === '/dashboard' ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100', 'rounded-md' ]"
@@ -27,7 +29,9 @@
             <i class="fas fa-file-alt mr-1"></i>
             <span>业务登记</span>
           </router-link>
+          <!-- 仅已登录用户显示业务列表 -->
           <router-link 
+            v-if="isAuthenticated"
             to="/business/list" 
             class="inline-flex items-center px-4 py-2 text-sm font-medium transition-colors"
             :class="[ $route.path === '/business/list' ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100', 'rounded-md' ]"
@@ -35,7 +39,9 @@
             <i class="fas fa-list mr-1"></i>
             <span>业务列表</span>
           </router-link>
+          <!-- 仅已登录的非出单员显示统计分析 -->
           <router-link 
+            v-if="isAuthenticated && !isUnderwriter"
             to="/statistics" 
             class="inline-flex items-center px-4 py-2 text-sm font-medium transition-colors"
             :class="[ $route.path === '/statistics' ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100', 'rounded-md' ]"
@@ -43,7 +49,9 @@
             <i class="fas fa-chart-bar mr-1"></i>
             <span>统计分析</span>
           </router-link>
+          <!-- 仅已登录用户显示数据查询 -->
           <router-link 
+            v-if="isAuthenticated"
             to="/data/query" 
             class="inline-flex items-center px-4 py-2 text-sm font-medium transition-colors"
             :class="[ $route.path === '/data/query' ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100', 'rounded-md' ]"
@@ -51,7 +59,9 @@
             <i class="fas fa-search mr-1"></i>
             <span>数据查询</span>
           </router-link>
+          <!-- 已登录用户显示管理菜单 -->
           <router-link 
+            v-if="isAuthenticated"
             to="/management" 
             class="inline-flex items-center px-4 py-2 text-sm font-medium transition-colors"
             :class="[ $route.path === '/management' ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100', 'rounded-md' ]"
@@ -62,7 +72,7 @@
         </div>
         
         <!-- 用户信息和通知 -->
-        <div class="flex items-center space-x-4">
+        <div v-if="isAuthenticated" class="flex items-center space-x-4">
           <div class="relative">
             <button class="flex items-center space-x-2 text-gray-600 hover:text-primary transition-colors">
               <i class="far fa-bell text-lg"></i>
@@ -96,13 +106,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const userInfo = ref({
   name: '管理员',
-  role: 'admin'
+  role: 'admin',
+  username: ''
 })
 
 onMounted(() => {
@@ -111,6 +122,16 @@ onMounted(() => {
   if (savedUser) {
     userInfo.value = JSON.parse(savedUser)
   }
+})
+
+// 检查当前用户是否已登录
+const isAuthenticated = computed(() => {
+  return localStorage.getItem('token') !== null
+})
+
+// 检查当前用户是否为出单员(underwriter)
+const isUnderwriter = computed(() => {
+  return userInfo.value.role === 'underwriter'
 })
 
 const handleLogout = () => {
