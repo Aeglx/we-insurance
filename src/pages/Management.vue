@@ -24,13 +24,13 @@
       <div class="container mx-auto px-4">
         <div class="flex space-x-8 overflow-x-auto">
           <button 
-            @click="activeTab = 'agent'" 
+            @click="switchTab('agent')" 
             :class="['py-4 px-1 border-b-2 font-medium text-sm', activeTab === 'agent' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300']"
           >
             业务员管理
           </button>
           <button 
-            @click="activeTab = 'insurance'" 
+            @click="switchTab('insurance')" 
             :class="['py-4 px-1 border-b-2 font-medium text-sm', activeTab === 'insurance' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300']"
           >
             险种管理
@@ -155,6 +155,64 @@
             <i class="fas fa-shield-alt text-4xl text-gray-300 mb-3"></i>
             <p class="text-gray-500">暂无险种数据</p>
           </div>
+          
+          <!-- 分页 -->
+          <div v-if="insuranceList.length > 0" class="flex justify-between items-center px-6 py-3 bg-white border-t border-gray-200">
+            <div class="text-sm text-gray-500">
+              共 {{ totalItems }} 条记录，每页显示 {{ pageSize }} 条
+            </div>
+            <div class="flex items-center space-x-1">
+              <button 
+                @click="prevPage" 
+                :disabled="currentPage === 1"
+                class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                <i class="fas fa-chevron-left"></i>
+              </button>
+              
+              <!-- 第一页 -->
+              <button 
+                v-if="totalPages > 1"
+                @click="goToPage(1)"
+                :class="['px-3 py-2 border rounded-md text-sm font-medium', currentPage === 1 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50']"
+              >
+                1
+              </button>
+              
+              <!-- 省略号 (如果当前页离第一页较远) -->
+              <span v-if="currentPage > 3" class="px-2 text-sm text-gray-500">...</span>
+              
+              <!-- 当前页附近的页码 -->
+              <button 
+                v-for="page in visiblePages" 
+                :key="page"
+                @click="goToPage(page)"
+                :class="['px-3 py-2 border rounded-md text-sm font-medium', currentPage === page ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50']"
+              >
+                {{ page }}
+              </button>
+              
+              <!-- 省略号 (如果当前页离最后一页较远) -->
+              <span v-if="currentPage < totalPages - 2" class="px-2 text-sm text-gray-500">...</span>
+              
+              <!-- 最后一页 -->
+              <button 
+                v-if="totalPages > 1 && currentPage !== totalPages"
+                @click="goToPage(totalPages)"
+                :class="['px-3 py-2 border rounded-md text-sm font-medium', currentPage === totalPages ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50']"
+              >
+                {{ totalPages }}
+              </button>
+              
+              <button 
+                @click="nextPage" 
+                :disabled="currentPage === totalPages"
+                class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -241,30 +299,55 @@
           <!-- 分页 -->
           <div v-if="agentList.length > 0" class="flex justify-between items-center px-6 py-3 bg-white border-t border-gray-200">
             <div class="text-sm text-gray-500">
-              共 {{ agentList.length }} 条记录
+              共 {{ totalItems }} 条记录，每页显示 {{ pageSize }} 条
             </div>
             <div class="flex items-center space-x-1">
               <button 
                 @click="prevPage" 
                 :disabled="currentPage === 1"
-                class="px-2 py-1 border rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 <i class="fas fa-chevron-left"></i>
               </button>
+              
+              <!-- 第一页 -->
               <button 
-                class="px-3 py-1 border rounded-md text-sm font-medium bg-blue-100 text-blue-800"
+                v-if="totalPages > 1"
+                @click="goToPage(1)"
+                :class="['px-3 py-2 border rounded-md text-sm font-medium', currentPage === 1 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50']"
               >
                 1
               </button>
+              
+              <!-- 省略号 (如果当前页离第一页较远) -->
+              <span v-if="currentPage > 3" class="px-2 text-sm text-gray-500">...</span>
+              
+              <!-- 当前页附近的页码 -->
               <button 
-                class="px-3 py-1 border rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                v-for="page in visiblePages" 
+                :key="page"
+                @click="goToPage(page)"
+                :class="['px-3 py-2 border rounded-md text-sm font-medium', currentPage === page ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50']"
               >
-                2
+                {{ page }}
               </button>
+              
+              <!-- 省略号 (如果当前页离最后一页较远) -->
+              <span v-if="currentPage < totalPages - 2" class="px-2 text-sm text-gray-500">...</span>
+              
+              <!-- 最后一页 -->
+              <button 
+                v-if="totalPages > 1 && currentPage !== totalPages"
+                @click="goToPage(totalPages)"
+                :class="['px-3 py-2 border rounded-md text-sm font-medium', currentPage === totalPages ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50']"
+              >
+                {{ totalPages }}
+              </button>
+              
               <button 
                 @click="nextPage" 
                 :disabled="currentPage === totalPages"
-                class="px-2 py-1 border rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 <i class="fas fa-chevron-right"></i>
               </button>
@@ -628,7 +711,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, inject } from 'vue'
+import { ref, onMounted, inject, computed } from 'vue'
 import insuranceService from '../services/insuranceService'
 import agentService from '../services/agentService'
 
@@ -637,6 +720,13 @@ const toast = inject('toast')
 
 // 激活的标签页
 const activeTab = ref('agent') // insurance, agent
+
+// 切换标签页时重置分页
+const switchTab = (tab) => {
+  activeTab.value = tab
+  currentPage.value = 1
+  loadCurrentTabData()
+}
 
 // 模态框状态
 const isModalVisible = ref(false)
@@ -653,6 +743,8 @@ const agentSearchKeyword = ref('')
 
 // 分页信息
 const currentPage = ref(1)
+const pageSize = ref(15) // 每页显示最多15条数据
+const totalItems = ref(0)
 const totalPages = ref(1)
 
 // 新增表单数据
@@ -695,7 +787,16 @@ onMounted(() => {
 const loadInsuranceList = async () => {
   try {
     const response = await insuranceService.getInsuranceList()
-    insuranceList.value = response.data || []
+    const allInsurances = response.data || []
+    
+    // 计算总页数
+    totalItems.value = allInsurances.length
+    totalPages.value = Math.ceil(totalItems.value / pageSize.value)
+    
+    // 实现分页
+    const startIndex = (currentPage.value - 1) * pageSize.value
+    const endIndex = startIndex + pageSize.value
+    insuranceList.value = allInsurances.slice(startIndex, endIndex)
   } catch (error) {
       console.error('加载险种列表失败:', error)
       toast.error('加载险种列表失败')
@@ -724,7 +825,16 @@ const loadInsuranceCategories = async () => {
 const loadAgentList = async () => {
   try {
     const response = await agentService.getAgentList()
-    agentList.value = response.data || []
+    const allAgents = response.data || []
+    
+    // 计算总页数
+    totalItems.value = allAgents.length
+    totalPages.value = Math.ceil(totalItems.value / pageSize.value)
+    
+    // 实现分页
+    const startIndex = (currentPage.value - 1) * pageSize.value
+    const endIndex = startIndex + pageSize.value
+    agentList.value = allAgents.slice(startIndex, endIndex)
   } catch (error) {
       console.error('加载代理人列表失败:', error)
       toast.error('加载代理人列表失败')
@@ -735,7 +845,17 @@ const loadAgentList = async () => {
 const searchInsurance = async () => {
   try {
     const response = await insuranceService.getInsuranceList({ keyword: insuranceSearchKeyword.value })
-    insuranceList.value = response.data || []
+    const allInsurances = response.data || []
+    
+    // 计算总页数
+    totalItems.value = allInsurances.length
+    totalPages.value = Math.ceil(totalItems.value / pageSize.value)
+    currentPage.value = 1 // 搜索时重置到第一页
+    
+    // 实现分页
+    const startIndex = (currentPage.value - 1) * pageSize.value
+    const endIndex = startIndex + pageSize.value
+    insuranceList.value = allInsurances.slice(startIndex, endIndex)
   } catch (error) {
       console.error('搜索险种失败:', error)
       toast.error('搜索险种失败')
@@ -746,7 +866,17 @@ const searchInsurance = async () => {
 const searchAgent = async () => {
   try {
     const response = await agentService.searchAgent(agentSearchKeyword.value)
-    agentList.value = response.data || []
+    const allAgents = response.data || []
+    
+    // 计算总页数
+    totalItems.value = allAgents.length
+    totalPages.value = Math.ceil(totalItems.value / pageSize.value)
+    currentPage.value = 1 // 搜索时重置到第一页
+    
+    // 实现分页
+    const startIndex = (currentPage.value - 1) * pageSize.value
+    const endIndex = startIndex + pageSize.value
+    agentList.value = allAgents.slice(startIndex, endIndex)
   } catch (error) {
       console.error('搜索代理人失败:', error)
       toast.error('搜索代理人失败')
@@ -994,14 +1124,14 @@ const submitForm = async () => {
         if (existingCategory) {
           categoryIdToSubmit = existingCategory.id
         } else {
-          // 生成新的分类ID
+          // 生成新分类ID
           maxCategoryId.value++
           categoryIdToSubmit = maxCategoryId.value
           // 添加到分类列表
           insuranceCategories.value.push({ id: maxCategoryId.value, name: finalCategory })
           
-          // 可以在这里调用API保存新分类到数据库
-          // await insuranceService.addInsuranceCategory(finalCategory)
+          // 保存新分类到数据库
+          await insuranceService.addInsuranceCategory(finalCategory)
         }
       }
       
@@ -1011,26 +1141,26 @@ const submitForm = async () => {
       if (formData.value.currentId) {
         // 编辑模式
         await insuranceService.updateInsurance(formData.value.currentId, formDataToSubmit)
-        await loadInsuranceList()
         toast.success('编辑险种成功')
       } else {
         // 新增模式
         await insuranceService.addInsurance(formDataToSubmit)
-        await loadInsuranceList()
         toast.success('新增险种成功')
       }
+      // 重新加载当前页面的数据
+      await loadInsuranceList()
     } else if (modalType.value === 'agent') {
         if (formData.value.currentId) {
           // 编辑模式
           await agentService.updateAgent(formData.value.currentId, currentForm)
-          await loadAgentList()
           toast.success('编辑业务员成功')
         } else {
           // 新增模式
           await agentService.addAgent(currentForm)
-          await loadAgentList()
           toast.success('添加业务员成功')
         }
+        // 重新加载当前页面的数据
+        await loadAgentList()
     }
     
     closeModal()
@@ -1086,13 +1216,14 @@ const deleteItem = async (type, id) => {
     try {
       if (type === 'insurance') {
         await insuranceService.deleteInsurance(id)
-        await loadInsuranceList()
         toast.success('删除险种成功')
       } else if (type === 'agent') {
         await agentService.deleteAgent(id)
-        await loadAgentList()
         toast.success('删除业务员成功')
       }
+      
+      // 重新加载当前页面的数据
+      loadCurrentTabData()
     } catch (error) {
       console.error('删除失败:', error)
       toast.error('删除失败')
@@ -1100,16 +1231,48 @@ const deleteItem = async (type, id) => {
   }
 }
 
+// 计算可见页码范围
+const visiblePages = computed(() => {
+  const pages = []
+  const total = totalPages.value
+  const current = currentPage.value
+  
+  // 显示当前页附近的页码（前后各1页）
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+    pages.push(i)
+  }
+  
+  return pages
+})
+
 // 分页函数
 const prevPage = () => {
   if (currentPage.value > 1) {
     currentPage.value--
+    loadCurrentTabData()
   }
 }
 
 const nextPage = () => {
   if (currentPage.value < totalPages.value) {
     currentPage.value++
+    loadCurrentTabData()
+  }
+}
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+    loadCurrentTabData()
+  }
+}
+
+// 加载当前标签页的数据
+const loadCurrentTabData = () => {
+  if (activeTab.value === 'insurance') {
+    loadInsuranceList()
+  } else if (activeTab.value === 'agent') {
+    loadAgentList()
   }
 }
 
