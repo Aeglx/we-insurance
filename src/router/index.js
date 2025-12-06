@@ -8,6 +8,7 @@ import BusinessList from '../pages/BusinessList.vue'
 import Statistics from '../pages/Statistics.vue'
 import DataQuery from '../pages/DataQuery.vue'
 import Management from '../pages/Management.vue'
+import InsuranceDetail from '../pages/InsuranceDetail.vue'
 import MainLayout from '../layouts/MainLayout.vue'
 
 // 路由配置
@@ -67,11 +68,24 @@ const routes = [
     meta: { requiresAuth: true },
     layout: MainLayout
   },
-  {
-    path: '/business/edit/:id',
+  {    path: '/business/edit/:id',
     name: 'BusinessEdit',
     component: BusinessEdit,
     meta: { requiresAuth: true },
+    layout: MainLayout
+  },
+  {
+    path: '/management/insurance/detail/:id',
+    name: 'InsuranceDetail',
+    component: InsuranceDetail,
+    meta: { requiresAuth: true },
+    layout: MainLayout
+  },
+  {
+    path: '/management/insurance/edit/:id',
+    name: 'InsuranceEdit',
+    component: () => import('../pages/InsuranceEdit.vue'),
+    meta: { title: '编辑保险产品', requiresAuth: true },
     layout: MainLayout
   }
 ]

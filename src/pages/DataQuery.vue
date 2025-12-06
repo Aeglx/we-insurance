@@ -477,7 +477,9 @@ const loadInsuranceList = async () => {
 const loadInsuranceCategoryList = async () => {
   try {
     const response = await insuranceService.getInsuranceCategoryList()
-    insuranceCategoryList.value = response.data || []
+    if (response.code === 200) {
+      insuranceCategoryList.value = response.data || []
+    }
   } catch (error) {
     console.error('加载险种分类列表失败:', error)
   }

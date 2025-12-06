@@ -42,7 +42,9 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 
 // 配置静态文件服务
-const __dirname = path.dirname(new URL(import.meta.url).pathname)
+// 正确获取当前目录路径（兼容Windows和ES模块）
+const __filename = new URL(import.meta.url).pathname;
+const __dirname = path.dirname(__filename.replace(/^\/([a-zA-Z]:\/)/, '$1'));
 app.use(express.static(path.join(__dirname, 'dist')))
 
 // 配置图片上传服务
@@ -56,6 +58,9 @@ const storage = multer.diskStorage({
     
     // 创建目录（如果不存在）
     fs.mkdirSync(dir, { recursive: true })
+    
+    // 保存相对路径到请求对象中
+    req.filePath = path.join(type, year, month)
     cb(null, dir)
   },
   filename: (req, file, cb) => {
@@ -63,7 +68,11 @@ const storage = multer.diskStorage({
     const timestamp = Date.now()
     const random = Math.floor(Math.random() * 10000)
     const ext = path.extname(file.originalname)
-    cb(null, `${timestamp}_${random}${ext}`)
+    const filename = `${timestamp}_${random}${ext}`
+    
+    // 保存完整的相对路径到请求对象中
+    req.fullFilePath = path.join(req.filePath, filename)
+    cb(null, filename)
   }
 })
 
@@ -159,13 +168,13 @@ const initDatabase = async () => {
     await sequelize.authenticate()
     console.log('数据库连接成功！')
 
-    // 自动创建表（如果不存在）
+    // 导入最新的数据库备份（强制模式：每次启动都导入最新备份）
+    await backupService.importDatabase(true)
+    
+    // 执行sync添加新字段（如果有的话）
     await databaseService.init()
 
     console.log('数据库表初始化完成！')
-    
-    // 导入最新的数据库备份（强制模式：每次启动都导入最新备份）
-    await backupService.importDatabase(true)
     
     // 初始化备份服务
     await backupService.init()
@@ -248,8 +257,11 @@ app.post('/api/upload/image', upload.single('image'), (req, res) => {
     }
     
     // 计算相对路径（存储到数据库）
-    const relativePath = req.file.path.replace(__dirname, '').replace(/\\/g, '/')
-    const imageUrl = `/uploads${relativePath.split('/uploads')[1]}`
+    // 使用path模块确保跨平台兼容性
+    const relativePath = path.relative(__dirname, req.file.path);
+    // 确保使用正斜杠作为路径分隔符
+    const normalizedPath = relativePath.replace(/\\/g, '/');
+    const imageUrl = `/uploads/${normalizedPath.replace(/^uploads\//i, '')}`
     
     res.json({
       success: true,
@@ -353,39 +365,49 @@ app.get('/api/insurance/list', async (req, res) => {
 app.get('/api/insurance/detail/:id', async (req, res) => {
   try {
     const { id } = req.params
-    const insurance = await db.Insurance.findByPk(id)
+    const insurance = await db.Insurance.findByPk(id, {
+      include: [
+        { model: db.InsuranceCategory, as: 'category', attributes: ['id', 'name'] }
+      ]
+    })
     
     if (!insurance) {
-      return res.status(404).json({ error: '险种不存在' })
+      return res.status(404).json({ code: 404, message: '险种不存在' })
     }
     
-    res.json(insurance.dataValues)
+    // 构建响应数据，包含分类名称
+    const insuranceData = {
+      ...insurance.dataValues,
+      category: insurance.category?.name || ''
+    }
+    
+    res.json({ code: 200, message: '获取成功', data: insuranceData })
   } catch (error) {
     console.error('获取险种详情失败:', error)
-    res.status(500).json({ error: '获取险种详情失败' })
+    res.status(500).json({ code: 500, message: '获取失败', error: error.message })
   }
 })
 
 // 添加险种
 app.post('/api/insurance/add', upload.single('image'), async (req, res) => {
   try {
-    const { name, code, category, description, status } = req.body
-    const image = req.file ? req.file.filename : null
+    const { name, code, category_id, description, status } = req.body
+    const image = req.file ? req.fullFilePath : null
     
     // 创建新险种
     const newInsurance = await db.Insurance.create({
       name,
       code,
-      category_id: category,
+      category_id,
       description,
       status: status !== undefined ? status : true,
       image
     })
     
-    res.json({ id: newInsurance.id, success: true })
+    res.json({ code: 200, message: '添加成功', data: { id: newInsurance.id } })
   } catch (error) {
     console.error('添加险种失败:', error)
-    res.status(500).json({ error: '添加险种失败' })
+    res.status(500).json({ code: 500, message: '添加失败', error: error.message })
   }
 })
 
@@ -393,30 +415,30 @@ app.post('/api/insurance/add', upload.single('image'), async (req, res) => {
 app.put('/api/insurance/update/:id', upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params
-    const { name, code, category, description, status } = req.body
-    const image = req.file ? req.file.filename : null
+    const { name, code, category_id, description, status } = req.body
+    const image = req.file ? req.fullFilePath : null
     
     // 查找险种
     const insurance = await db.Insurance.findByPk(id)
     
     if (!insurance) {
-      return res.status(404).json({ error: '险种不存在' })
+      return res.status(404).json({ code: 404, message: '险种不存在' })
     }
     
     // 更新险种
     await insurance.update({
       name,
       code,
-      category_id: category,
+      category_id,
       description,
       status,
       image: image !== null ? image : insurance.image
     })
     
-    res.json({ success: true })
+    res.json({ code: 200, message: '更新成功' })
   } catch (error) {
     console.error('更新险种失败:', error)
-    res.status(500).json({ error: '更新险种失败' })
+    res.status(500).json({ code: 500, message: '更新失败', error: error.message })
   }
 })
 
@@ -429,16 +451,16 @@ app.delete('/api/insurance/delete/:id', async (req, res) => {
     const insurance = await db.Insurance.findByPk(id)
     
     if (!insurance) {
-      return res.status(404).json({ error: '险种不存在' })
+      return res.status(404).json({ code: 404, message: '险种不存在' })
     }
     
     // 删除险种
     await insurance.destroy()
     
-    res.json({ success: true })
+    res.json({ code: 200, message: '删除成功' })
   } catch (error) {
     console.error('删除险种失败:', error)
-    res.status(500).json({ error: '删除险种失败' })
+    res.status(500).json({ code: 500, message: '删除失败', error: error.message })
   }
 })
 

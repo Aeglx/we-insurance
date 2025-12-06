@@ -247,7 +247,9 @@ export const useInsuranceStore = defineStore('insurance', {
         const response = await insuranceService.getInsuranceCategories()
         
         // 更新状态
-        this.categories = response || []
+        if (response.code === 200) {
+          this.categories = response.data || []
+        }
         
         return response
       } catch (error) {

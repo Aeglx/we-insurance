@@ -109,8 +109,10 @@
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr v-for="item in insuranceList" :key="item.id">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {{ item.name }}
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 cursor-pointer hover:text-primary transition-colors">
+                    <a @click="viewInsuranceDetail(item.id)">
+                      {{ item.name }}
+                    </a>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {{ item.code }}
@@ -726,12 +728,16 @@
 
 <script setup>
 import { ref, onMounted, inject, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import insuranceService from '../services/insuranceService'
 import agentService from '../services/agentService'
 import ImageUploader from '../components/common/ImageUploader.vue'
 
 // 导入toast
 const toast = inject('toast')
+
+// 初始化路由
+const router = useRouter()
 
 // 激活的标签页
 const activeTab = ref('agent') // insurance, agent
@@ -802,6 +808,7 @@ onMounted(() => {
 const loadInsuranceList = async () => {
   try {
     const response = await insuranceService.getInsuranceList()
+    // 由于响应拦截器，response已经是response.data
     const allInsurances = response.data || []
     
     // 计算总页数
@@ -822,8 +829,8 @@ const loadInsuranceList = async () => {
 const loadInsuranceCategories = async () => {
   try {
     const response = await insuranceService.getInsuranceCategories()
-    // 更新险种分类列表
-    if (response.data) {
+    // 响应拦截器返回的是后端的response.data，包含code、message和data字段
+    if (response.code === 200) {
       insuranceCategories.value = response.data
       // 更新最大分类ID
       if (insuranceCategories.value.length > 0) {
@@ -840,6 +847,7 @@ const loadInsuranceCategories = async () => {
 const loadAgentList = async () => {
   try {
     const response = await agentService.getAgentList()
+    // 由于响应拦截器，response已经是response.data
     const allAgents = response.data || []
     
     // 计算总页数
@@ -860,6 +868,7 @@ const loadAgentList = async () => {
 const searchInsurance = async () => {
   try {
     const response = await insuranceService.getInsuranceList({ keyword: insuranceSearchKeyword.value })
+    // 由于响应拦截器，response已经是response.data
     const allInsurances = response.data || []
     
     // 计算总页数
@@ -1076,6 +1085,14 @@ const addItem = () => {
   isModalVisible.value = true
 }
 
+// 查看保险详情
+const viewInsuranceDetail = (id) => {
+  router.push({
+    name: 'InsuranceDetail',
+    params: { id: id }
+  })
+}
+
 // 关闭模态框
 const closeModal = () => {
   isModalVisible.value = false
@@ -1152,7 +1169,7 @@ const submitForm = async () => {
       }
       
       // 更新表单中的分类值
-      const formDataToSubmit = { ...currentForm, category: categoryIdToSubmit }
+      const formDataToSubmit = { ...currentForm, category_id: categoryIdToSubmit, category: undefined }
       
       if (formData.value.currentId) {
         // 编辑模式
@@ -1188,25 +1205,14 @@ const submitForm = async () => {
 
 // 编辑项目
 const editItem = (item) => {
-  modalType.value = activeTab.value
-  
-  // 设置模态框标题
   if (activeTab.value === 'insurance') {
-    modalTitle.value = '编辑险种'
+    // 跳转到保险编辑页面
+    router.push(`/management/insurance/edit/${item.id}`)
   } else if (activeTab.value === 'agent') {
+    modalType.value = activeTab.value
     modalTitle.value = '编辑业务员'
-  }
-  
-  // 填充表单数据
-  if (activeTab.value === 'insurance') {
-    formData.value.insurance = {
-      name: item.name,
-      code: item.code,
-      category: item.categoryId || item.category,
-      description: item.description,
-      status: item.status
-    }
-  } else if (activeTab.value === 'agent') {
+    
+    // 填充表单数据
     formData.value.agent = {
       name: item.name,
       code: item.code,
@@ -1215,15 +1221,15 @@ const editItem = (item) => {
       department: item.department,
       status: item.status
     }
+    
+    formErrors.value = {}
+    
+    // 保存当前编辑的项目ID
+    formData.value.currentId = item.id
+    
+    // 打开模态框
+    isModalVisible.value = true
   }
-  
-  formErrors.value = {}
-  
-  // 保存当前编辑的项目ID
-  formData.value.currentId = item.id
-  
-  // 打开模态框
-  isModalVisible.value = true
 }
 
 // 删除项目

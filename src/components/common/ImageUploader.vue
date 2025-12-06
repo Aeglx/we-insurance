@@ -44,6 +44,13 @@
 <script setup>
 import { ref, defineProps, defineEmits, watch } from 'vue'
 import axios from 'axios'
+import { API_BASE_URL } from '../../config/api'
+
+// 创建一个axios实例
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000
+})
 
 // Props
 const props = defineProps({
@@ -129,7 +136,7 @@ const uploadImage = async (file) => {
     formData.append('image', file)
     formData.append('type', props.type)
     
-    const response = await axios.post('/api/upload/image', formData, {
+    const response = await api.post('/upload/image', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       },
@@ -140,6 +147,7 @@ const uploadImage = async (file) => {
     
     if (response.data.success) {
       const imageUrl = response.data.imageUrl
+      // 保持本地预览，不替换为服务器URL
       emit('update:modelValue', imageUrl)
       emit('upload-success', imageUrl)
     } else {
@@ -191,8 +199,8 @@ const removeImage = () => {
 
 .upload-area.has-image {
   border-style: solid;
-  padding-top: 0;
-  height: 200px;
+  padding-top: 56.25%; /* 保持16:9比例 */
+  height: auto;
 }
 
 .file-input {
@@ -239,7 +247,9 @@ const removeImage = () => {
 }
 
 .image-preview {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;

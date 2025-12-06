@@ -203,7 +203,9 @@ const loadUnderwriters = async () => {
 const loadInsuranceCategories = async () => {
   try {
     const response = await insuranceService.getInsuranceCategories()
-    insuranceCategories.value = response.data || []
+    if (response.code === 200) {
+      insuranceCategories.value = response.data || []
+    }
   } catch (error) {
     console.error('加载险种分类数据失败:', error)
   }

@@ -4,6 +4,9 @@
 // 静态部署时，可根据实际情况修改为后端API地址
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
+// 图片基础URL
+export const IMAGE_BASE_URL = '/uploads/'
+
 // 请求超时时间（毫秒）
 export const REQUEST_TIMEOUT = 10000
 

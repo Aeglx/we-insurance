@@ -513,7 +513,9 @@ const loadUnderwriters = async () => {
 const loadInsuranceTypes = async () => {
   try {
     const response = await insuranceService.getInsuranceCategories()
-    insuranceTypes.value = response.data
+    if (response.code === 200) {
+      insuranceTypes.value = response.data
+    }
   } catch (error) {
     console.error('加载险种分类失败:', error)
   }

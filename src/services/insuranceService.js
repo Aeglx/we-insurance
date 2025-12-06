@@ -64,21 +64,30 @@ const insuranceService = {
   // 添加险种
   addInsurance: async (data) => {
     try {
-      const formData = new FormData()
-      formData.append('name', data.name)
-      formData.append('code', data.code)
-      formData.append('category', data.category)
-      formData.append('description', data.description)
-      formData.append('status', data.status)
-      if (data.image) {
+      // 检查image是否为File对象
+      const isFile = data.image instanceof File
+      
+      if (isFile) {
+        // 如果是File对象，使用FormData提交
+        const formData = new FormData()
+        formData.append('name', data.name)
+        formData.append('code', data.code)
+        formData.append('category_id', data.category_id)
+        formData.append('description', data.description)
+        formData.append('status', data.status)
         formData.append('image', data.image)
+        
+        const response = await api.post('/insurance/add', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+        return response
+      } else {
+        // 如果是URL字符串或其他类型，直接使用JSON格式提交
+        const response = await api.post('/insurance/add', data)
+        return response
       }
-      const response = await api.post('/insurance/add', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
-      return response
     } catch (error) {
       console.error('添加险种失败:', error)
       throw error
@@ -88,21 +97,30 @@ const insuranceService = {
   // 更新险种
   updateInsurance: async (id, data) => {
     try {
-      const formData = new FormData()
-      formData.append('name', data.name)
-      formData.append('code', data.code)
-      formData.append('category', data.category)
-      formData.append('description', data.description)
-      formData.append('status', data.status)
-      if (data.image) {
+      // 检查image是否为File对象
+      const isFile = data.image instanceof File
+      
+      if (isFile) {
+        // 如果是File对象，使用FormData提交
+        const formData = new FormData()
+        formData.append('name', data.name)
+        formData.append('code', data.code)
+        formData.append('category_id', data.category_id)
+        formData.append('description', data.description)
+        formData.append('status', data.status)
         formData.append('image', data.image)
+        
+        const response = await api.put(`/insurance/update/${id}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+        return response
+      } else {
+        // 如果是URL字符串或其他类型，直接使用JSON格式提交
+        const response = await api.put(`/insurance/update/${id}`, data)
+        return response
       }
-      const response = await api.put(`/insurance/update/${id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
-      return response
     } catch (error) {
       console.error('更新险种失败:', error)
       throw error
@@ -141,8 +159,7 @@ const insuranceService = {
       throw error
     }
   },
-  
-  // 获取险种分类列表（别名方法）
+  // 获取险种分类列表（别名方法，保持兼容性）
   getInsuranceCategoryList: async () => {
     try {
       const response = await api.get('/insurance/categories')
